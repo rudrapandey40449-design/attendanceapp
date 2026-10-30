@@ -6,7 +6,7 @@ import 'package:http/http.dart' as http;
 Future<void> sendGovCloudSMS(BuildContext context, String phone, String msg) async {
   if (phone.isEmpty) return;
   final cleanPhone = phone.replaceAll(RegExp(r'[^0-9]'), '');
-  const String fast2smsApiKey = 'YOUR_FAST2SMS_API_KEY';
+  const String fast2smsApiKey = 'TcMuHytKcrz7j8bbmvjdb6tIPG6ofRl0bM5y9c6LowxLrkSqTnGP0vlSteARud6dHjRMg9AGY8eUW5Ne';
 
   try {
     final response = await http.post(
