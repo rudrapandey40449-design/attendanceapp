@@ -3,6 +3,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -17,6 +18,15 @@ void main() async {
     );
   } catch (_) {}
   runApp(const MaterialApp(home: AdminAuth(), debugShowCheckedModeBanner: false));
+}
+
+Future<void> sendGovSMS(String phone, String msg) async {
+  if (phone.isEmpty) return;
+  final cleanPhone = phone.replaceAll(RegExp(r'[^0-9+]'), '');
+  final Uri uri = Uri.parse('sms:$cleanPhone?body=${Uri.encodeComponent(msg)}');
+  try {
+    await launchUrl(uri, mode: LaunchMode.externalApplication);
+  } catch (_) {}
 }
 
 class GovHeader extends StatelessWidget {
@@ -180,8 +190,8 @@ class Dashboard extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 12),
-                _tile(context, 'दैनिक बायोमेट्रिक उपस्थिति (Face Verification)', Icons.camera_front, Colors.teal, AttMod(aId: aId)),
-                _tile(context, 'राजस्व एवं शुल्क संधारण (Fee Receipt)', Icons.receipt_long, Colors.green.shade700, FeeMod(aId: aId, org: org)),
+                _tile(context, 'दैनिक बायोमेट्रिक उपस्थिति (Face Verification & SMS)', Icons.camera_front, Colors.teal, AttMod(aId: aId, org: org)),
+                _tile(context, 'राजस्व एवं शुल्क संधारण (Fee Receipt & SMS)', Icons.receipt_long, Colors.green.shade700, FeeMod(aId: aId, org: org)),
                 _tile(context, 'शैक्षणिक मूल्यांकन एवं प्राप्तांक (Test Ledger)', Icons.assignment_turned_in, Colors.indigo, TestMod(aId: aId)),
                 _tile(context, 'नवीन शिक्षार्थी नामांकन (Student Enrolment)', Icons.person_add_alt_1, Colors.blue.shade800, AddStdMod(aId: aId)),
                 _tile(context, 'डिजिटल शिक्षार्थी रिकॉर्ड एवं पहचान पत्र (Dossier & ID)', Icons.badge, Colors.deepOrange, SearchMod(aId: aId, org: org)),
@@ -225,7 +235,7 @@ class _AddStdModState extends State<AddStdMod> {
           const SizedBox(height: 10),
           TextField(controller: _r, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'विभागीय अनुक्रमांक (Roll No) *', border: OutlineInputBorder(), isDense: true)),
           const SizedBox(height: 10),
-          TextField(controller: _p, keyboardType: TextInputType.phone, decoration: const InputDecoration(labelText: 'अभिभावक का दूरभाष (मोबाइल)', border: OutlineInputBorder(), isDense: true)),
+          TextField(controller: _p, keyboardType: TextInputType.phone, decoration: const InputDecoration(labelText: 'अभिभावक का दूरभाष (मोबाइल) *', border: OutlineInputBorder(), isDense: true)),
           const SizedBox(height: 10),
           TextField(controller: _f, decoration: const InputDecoration(labelText: 'पिता / संरक्षक का नाम', border: OutlineInputBorder(), isDense: true)),
           const SizedBox(height: 10),
@@ -251,8 +261,8 @@ class _AddStdModState extends State<AddStdMod> {
   }
 }
 class AttMod extends StatefulWidget {
-  final String aId;
-  const AttMod({super.key, required this.aId});
+  final String aId, org;
+  const AttMod({super.key, required this.aId, required this.org});
   @override
   State<AttMod> createState() => _AttModState();
 }
@@ -306,8 +316,8 @@ class _AttModState extends State<AttMod> {
                     if (s2.hasData) {
                       for (var d in s2.data!.docs) {
                         final r = d['roll'].toString();
-                        _st[r] = d['status'] == 'Present';
-                        _face[r] = (d.data() as Map<String, dynamic>)['face'] == true;
+                        _st.putIfAbsent(r, () => d['status'] == 'Present');
+                        _face.putIfAbsent(r, () => (d.data() as Map<String, dynamic>)['face'] == true);
                       }
                     }
                     return ListView.builder(
@@ -315,16 +325,35 @@ class _AttModState extends State<AttMod> {
                       itemBuilder: (c, i) {
                         final r = stds[i]['roll'].toString();
                         final isV = _face[r] ?? false;
+                        final isP = _st[r] ?? false;
+                        final phone = (stds[i].data() as Map<String, dynamic>)['phone'] ?? '';
+                        final sName = stds[i]['name'] ?? '';
                         return Card(
                           margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                           child: ListTile(
-                            title: Text('${stds[i]['name']} (अनुक्रमांक: $r)', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-                            subtitle: Text(isV ? 'बायोमेट्रिक: प्रमाणित ✔ | उपस्थित' : 'सत्यापन लंबित ✖', style: TextStyle(color: isV ? Colors.green.shade700 : Colors.red, fontSize: 11)),
-                            trailing: ElevatedButton.icon(
-                              style: ElevatedButton.styleFrom(backgroundColor: isV ? Colors.green.shade700 : const Color(0xFF0D253F), foregroundColor: Colors.white),
-                              icon: const Icon(Icons.camera_front, size: 16),
-                              label: Text(isV ? 'प्रमाणित' : 'सत्यापन'),
-                              onPressed: () => _scan(r),
+                            title: Text('$sName (अनुक्रमांक: $r)', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                            subtitle: Text(isP ? (isV ? 'बायोमेट्रिक: प्रमाणित ✔ | उपस्थित' : 'मैन्युअल उपस्थित ✔') : 'अनुपस्थित (Absent) ✖', style: TextStyle(color: isP ? Colors.green.shade700 : Colors.red, fontSize: 11)),
+                            trailing: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                ElevatedButton(
+                                  style: ElevatedButton.styleFrom(backgroundColor: isP ? Colors.green.shade700 : Colors.grey.shade400, foregroundColor: Colors.white, minimumSize: const Size(40, 30)),
+                                  onPressed: () => setState(() => _st[r] = !(isP)),
+                                  child: Text(isP ? 'P' : 'A', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                                ),
+                                const SizedBox(width: 4),
+                                ElevatedButton.icon(
+                                  style: ElevatedButton.styleFrom(backgroundColor: isV ? Colors.green.shade700 : const Color(0xFF0D253F), foregroundColor: Colors.white, minimumSize: const Size(60, 30)),
+                                  icon: const Icon(Icons.camera_front, size: 14),
+                                  label: Text(isV ? 'प्रमाणित' : 'सत्यापन', style: const TextStyle(fontSize: 10)),
+                                  onPressed: () => _scan(r),
+                                ),
+                                if (!isP && phone.isNotEmpty)
+                                  IconButton(
+                                    icon: const Icon(Icons.sms, color: Colors.red, size: 22),
+                                    onPressed: () => sendGovSMS(phone, 'राजकीय प्रबंधन प्रणाली (${widget.org}): प्रिय अभिभावक, आपका पाल्य $sName (अनुक्रमांक: $r) आज दिनांक $_dKey को कक्षा से अनुपस्थित है।'),
+                                  ),
+                              ],
                             ),
                           ),
                         );
@@ -423,14 +452,21 @@ class FeeMod extends StatelessWidget {
                   final item = feeMap[r];
                   final isP = item != null && item['isPaid'] == true;
                   final pDate = item?['paidOn'] ?? '';
+                  final phone = (stds[i].data() as Map<String, dynamic>)['phone'] ?? '';
+                  final sName = stds[i]['name'] ?? '';
                   return Card(
                     child: ListTile(
-                      title: Text(stds[i]['name'] ?? '', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                      title: Text(sName, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
                       subtitle: Text('अनुक्रमांक: $r | स्थिति: ${isP ? "जमा" : "बकाया"}', style: TextStyle(color: isP ? Colors.green.shade700 : Colors.red, fontSize: 11)),
                       trailing: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          if (isP) IconButton(icon: const Icon(Icons.print, color: Color(0xFF0D253F), size: 20), onPressed: () => _showReceipt(context, stds[i]['name'], r, m, pDate)),
+                          if (isP) IconButton(icon: const Icon(Icons.print, color: Color(0xFF0D253F), size: 20), onPressed: () => _showReceipt(context, sName, r, m, pDate)),
+                          if (isP && phone.isNotEmpty)
+                            IconButton(
+                              icon: const Icon(Icons.sms, color: Colors.green, size: 20),
+                              onPressed: () => sendGovSMS(phone, 'राजकीय प्रबंधन प्रणाली ($org): प्रिय अभिभावक, शिक्षार्थी $sName (अनुक्रमांक: $r) का माह $m का शुल्क सफलतापूर्वक प्राप्त हो गया है। रसीद सं.: REC-$r। धन्यवाद।'),
+                            ),
                           ElevatedButton(
                             style: ElevatedButton.styleFrom(backgroundColor: isP ? Colors.green.shade700 : Colors.red, foregroundColor: Colors.white),
                             onPressed: () {
@@ -585,7 +621,8 @@ class _SearchModState extends State<SearchMod> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('डिजिटल शिक्षार्थी डोजियर'), backgroundColor: const Color(0xFF0D253F), foregroundColor: Colors.white),
+appBar: AppBar(title: const Text('शिक्षार्थी डोजियर'), backgroundColor: const Color(0xFF0D253F), foregroundColor: Color
+              
       body: Padding(
         padding: const EdgeInsets.all(12),
         child: Column(
@@ -618,4 +655,55 @@ class _SearchModState extends State<SearchMod> {
                                     ElevatedButton.icon(
                                       style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF0D253F), foregroundColor: Colors.white, minimumSize: const Size(60, 30)),
                                       icon: const Icon(Icons.badge, size: 14),
-                                      label: co
+                                      label: const Text('ID Card', style: TextStyle(fontSize: 10)),
+                                      onPressed: () => _showIDCard(context, d),
+                                    ),
+                                  ],
+                                ),
+                                const Divider(height: 10),
+                                Text('कक्षा: ${d['class']} | पिता: ${d['father']}\nमोबाइल: ${d['phone']} | पता: ${d['address']}', style: const TextStyle(fontSize: 11)),
+                              ],
+                            ),
+                          ),
+                        ),
+                        StreamBuilder<QuerySnapshot>(
+                          stream: FirebaseFirestore.instance.collection('admins').doc(widget.aId).collection('attendance').where('roll', isEqualTo: _roll).snapshots(),
+                          builder: (ctx, att) {
+                            final docs = att.data?.docs ?? [];
+                            int pres = docs.where((e) => e['status'] == 'Present').length;
+                            final tot = docs.length;
+                            final pct = tot > 0 ? ((pres / tot) * 100).toStringAsFixed(1) : '0';
+                            return Card(
+                              color: Colors.blue.shade50,
+                              child: Padding(
+                                padding: const EdgeInsets.all(8),
+                                child: Text('कुल उपस्थिति: $tot दिवस | उपस्थित: $pres | निरंतरता: $pct%', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                              ),
+                            );
+                          },
+                        ),
+                        StreamBuilder<QuerySnapshot>(
+                          stream: FirebaseFirestore.instance.collection('admins').doc(widget.aId).collection('tests').where('roll', isEqualTo: _roll).snapshots(),
+                          builder: (ctx, ts) {
+                            final tDocs = ts.data?.docs ?? [];
+                            return Column(
+                              children: tDocs.map((doc) => Card(
+                                child: ListTile(
+                                  title: Text('${doc['test']} - ${doc['sub']}', style: const TextStyle(fontSize: 12)),
+                                  trailing: Text('${doc['marks']} / ${doc['tot']}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                                ),
+                              )).toList(),
+                            );
+                          },
+                        ),
+                      ],
+                    );
+                  },
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
