@@ -1,22 +1,35 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:intl/intl.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:http/http.dart' as http;
 
+// 100% बैकग्राउंड ऑटोमैटिक क्लाउड SMS (बिना किसी स्क्रीन पॉप-अप के)
 Future<void> sendGovCloudSMS(BuildContext context, String phone, String msg) async {
   if (phone.isEmpty) return;
   final cleanPhone = phone.replaceAll(RegExp(r'[^0-9]'), '');
+  
+  // Fast2SMS API Key (अपने Fast2SMS पैनल से Dev API Key डालें)
   const String fast2smsApiKey = 'YOUR_FAST2SMS_API_KEY';
+
   try {
-    await http.post(
+    final response = await http.post(
       Uri.parse('https://www.fast2sms.com/dev/bulkV2'),
-      headers: {'authorization': fast2smsApiKey, 'Content-Type': 'application/json'},
-      body: jsonEncode({'route': 'q', 'message': msg, 'language': 'unicode', 'numbers': cleanPhone}),
+      headers: {
+        'authorization': fast2smsApiKey,
+        'Content-Type': 'application/json',
+      },
+      body: jsonEncode({
+        'route': 'q',
+        'message': msg,
+        'language': 'unicode',
+        'numbers': cleanPhone,
+      }),
     );
-    if (context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('आधिकारिक SMS डिस्पैच अनुरोध भेजा गया ✔')));
+    final data = jsonDecode(response.body);
+    if (context.mounted && data['return'] == true) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('अभिभावक को आधिकारिक SMS ऑटो-डिस्पैच हुआ ✔'), duration: Duration(seconds: 1)),
+      );
     }
   } catch (_) {}
 }
