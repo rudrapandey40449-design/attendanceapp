@@ -20,14 +20,14 @@ class FeeMod extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             children: [
               Container(
-                width: 36,
-                height: 36,
+                width: 38,
+                height: 38,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   border: Border.all(color: Colors.amber, width: 2),
-                  gradient: const RadialGradient(colors: [Color(0xFF2A4D69), Color(0xFF0D253F)]),
+                  gradient: const RadialGradient(colors: [Color(0xFF2A5298), Color(0xFF07192C)]),
                 ),
-                child: const Center(child: Icon(Icons.shield, color: Colors.amber, size: 20)),
+                child: const Center(child: Icon(Icons.workspace_premium, color: Colors.amber, size: 22)),
               ),
               const SizedBox(height: 4),
               Text(org, textAlign: TextAlign.center, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
@@ -96,7 +96,6 @@ class FeeMod extends StatelessWidget {
                               FirebaseFirestore.instance.collection('admins').doc(aId).collection('fees').doc('$m-$r').set({
                                 'month': m, 'roll': r, 'isPaid': newStatus, 'paidOn': newStatus ? dt : null
                               });
-                              // Paid होते ही ऑटो-SMS
                               if (newStatus && phone.isNotEmpty) {
                                 sendGovCloudSMS(context, phone, 'राजकीय कोचिंग ($org): प्रिय अभिभावक, शिक्षार्थी $sName (अनुक्रमांक: $r) का माह $m का मासिक शुल्क प्राप्त हुआ। रसीद सं: REC-$r। संपर्क सूत्र: 7393899011');
                               }
@@ -125,13 +124,48 @@ class TestMod extends StatefulWidget {
 }
 
 class _TestModState extends State<TestMod> {
-  final _t = TextEditingController(text: 'मासिक मूल्यांकन'), _sub = TextEditingController(text: 'Chemistry'), _tot = TextEditingController(text: '50');
+  final _t = TextEditingController(text: 'मासिक मूल्यांकन'), _sub = TextEditingController(text: 'Science'), _tot = TextEditingController(text: '50');
   final Map<String, TextEditingController> _m = {};
+
+  String _calcGrade(double pct) {
+    if (pct >= 85) return 'A+';
+    if (pct >= 70) return 'A';
+    if (pct >= 55) return 'B';
+    if (pct >= 33) return 'C';
+    return 'F (अनुत्तीर्ण)';
+  }
+
+  void _showMarkDialog(BuildContext context, String sName, String roll, String exam, String sub, String obtained, String total, String pct, String grade) {
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        title: Row(
+          children: [
+            const Icon(Icons.assessment, color: Color(0xFF0D253F)),
+            const SizedBox(width: 8),
+            Text('$sName की मार्कशीट', style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(dense: true, title: const Text('परीक्षा'), trailing: Text(exam, style: const TextStyle(fontWeight: FontWeight.bold))),
+            ListTile(dense: true, title: const Text('विषय'), trailing: Text(sub, style: const TextStyle(fontWeight: FontWeight.bold))),
+            ListTile(dense: true, title: const Text('प्राप्तांक / पूर्णांक'), trailing: Text('$obtained / $total', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14))),
+            ListTile(dense: true, title: const Text('प्रतिशत'), trailing: Text('$pct%', style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.blue))),
+            ListTile(dense: true, title: const Text('ग्रेड एवं परिणाम'), trailing: Text(grade, style: TextStyle(fontWeight: FontWeight.bold, color: grade.startsWith('F') ? Colors.red : Colors.green.shade700))),
+          ],
+        ),
+        actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('बंद करें'))],
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('शैक्षणिक मूल्यांकन पंजिका'), backgroundColor: const Color(0xFF0D253F), foregroundColor: Colors.white),
+      appBar: AppBar(title: const Text('शैक्षणिक मूल्यांकन एवं रिपोर्ट कार्ड'), backgroundColor: const Color(0xFF0D253F), foregroundColor: Colors.white),
       body: StreamBuilder<QuerySnapshot>(
         stream: FirebaseFirestore.instance.collection('admins').doc(widget.aId).collection('students').snapshots(),
         builder: (ctx, snap) {
@@ -140,15 +174,16 @@ class _TestModState extends State<TestMod> {
           for (var d in docs) { _m.putIfAbsent(d['roll'].toString(), () => TextEditingController(text: '0')); }
           return Column(
             children: [
-              Padding(
-                padding: const EdgeInsets.all(8),
+              Container(
+                padding: const EdgeInsets.all(10),
+                color: Colors.blue.shade50,
                 child: Row(
                   children: [
-                    Expanded(child: TextField(controller: _t, decoration: const InputDecoration(labelText: 'परीक्षा', border: OutlineInputBorder(), isDense: true))),
-                    const SizedBox(width: 4),
-                    Expanded(child: TextField(controller: _sub, decoration: const InputDecoration(labelText: 'विषय', border: OutlineInputBorder(), isDense: true))),
-                    const SizedBox(width: 4),
-                    SizedBox(width: 65, child: TextField(controller: _tot, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'पूर्णांक', border: OutlineInputBorder(), isDense: true))),
+                    Expanded(child: TextField(controller: _t, decoration: const InputDecoration(labelText: 'परीक्षा नाम', border: OutlineInputBorder(), isDense: true, filled: true, fillColor: Colors.white))),
+                    const SizedBox(width: 6),
+                    Expanded(child: TextField(controller: _sub, decoration: const InputDecoration(labelText: 'विषय', border: OutlineInputBorder(), isDense: true, filled: true, fillColor: Colors.white))),
+                    const SizedBox(width: 6),
+                    SizedBox(width: 75, child: TextField(controller: _tot, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'पूर्णांक', border: OutlineInputBorder(), isDense: true, filled: true, fillColor: Colors.white))),
                   ],
                 ),
               ),
@@ -157,27 +192,80 @@ class _TestModState extends State<TestMod> {
                   itemCount: docs.length,
                   itemBuilder: (c, i) {
                     final r = docs[i]['roll'].toString();
-                    return ListTile(
-                      title: Text('${docs[i]['name']} (रोल: $r)', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
-                      trailing: SizedBox(width: 65, child: TextField(controller: _m[r], keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'प्राप्तांक', border: OutlineInputBorder(), isDense: true))),
+                    final sName = docs[i]['name'] ?? '';
+                    final phone = (docs[i].data() as Map<String, dynamic>)['phone'] ?? '';
+                    final marks = double.tryParse(_m[r]?.text.trim() ?? '0') ?? 0;
+                    final total = double.tryParse(_tot.text.trim()) ?? 50;
+                    final pct = total > 0 ? ((marks / total) * 100).toStringAsFixed(1) : '0';
+                    final grade = _calcGrade(double.tryParse(pct) ?? 0);
+                    final isPass = (double.tryParse(pct) ?? 0) >= 33;
+
+                    return Card(
+                      margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 4),
+                        child: ListTile(
+                          title: Text('$sName (रोल: $r)', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
+                          subtitle: Text('प्रतिशत: $pct% | ग्रेड: $grade (${isPass ? "उत्तीर्ण" : "अनुत्तीर्ण"})', style: TextStyle(color: isPass ? Colors.green.shade700 : Colors.red, fontSize: 11, fontWeight: FontWeight.w600)),
+                          trailing: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              SizedBox(
+                                width: 60,
+                                child: TextField(
+                                  controller: _m[r],
+                                  keyboardType: TextInputType.number,
+                                  onChanged: (_) => setState(() {}),
+                                  decoration: const InputDecoration(labelText: 'प्राप्तांक', border: OutlineInputBorder(), isDense: true),
+                                ),
+                              ),
+                              IconButton(
+                                icon: const Icon(Icons.remove_red_eye, color: Color(0xFF0D253F), size: 20),
+                                onPressed: () => _showMarkDialog(context, sName, r, _t.text.trim(), _sub.text.trim(), _m[r]?.text.trim() ?? '0', _tot.text.trim(), pct, grade),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
                     );
                   },
                 ),
               ),
-              ElevatedButton(
-                style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF0D253F), foregroundColor: Colors.white),
-                onPressed: () async {
-                  final b = FirebaseFirestore.instance.batch();
-                  for (var doc in docs) {
-                    final r = doc['roll'].toString();
-                    b.set(FirebaseFirestore.instance.collection('admins').doc(widget.aId).collection('tests').doc('${_t.text.trim()}-$r'), {
-                      'test': _t.text.trim(), 'sub': _sub.text.trim(), 'tot': _tot.text.trim(), 'marks': _m[r]?.text.trim() ?? '0', 'roll': r, 'date': DateFormat('dd-MM-yyyy').format(DateTime.now()),
-                    });
-                  }
-                  await b.commit();
-                  if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('मूल्यांकन सुरक्षित हो गया!')));
-                },
-                child: const Text('मूल्यांकन डेटा सुरक्षित करें'),
+              Padding(
+                padding: const EdgeInsets.all(10),
+                child: ElevatedButton.icon(
+                  style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF0D253F), foregroundColor: Colors.white, minimumSize: const Size.fromHeight(45)),
+                  icon: const Icon(Icons.cloud_upload),
+                  label: const Text('मूल्यांकन सुरक्षित करें एवं अभिभावकों को SMS भेजें'),
+                  onPressed: () async {
+                    final b = FirebaseFirestore.instance.batch();
+                    final curDate = DateFormat('dd-MM-yyyy').format(DateTime.now());
+                    final totVal = _tot.text.trim();
+                    final subVal = _sub.text.trim();
+                    final testVal = _t.text.trim();
+
+                    for (var doc in docs) {
+                      final r = doc['roll'].toString();
+                      final sName = doc['name'] ?? '';
+                      final phone = (doc.data() as Map<String, dynamic>)['phone'] ?? '';
+                      final obtained = _m[r]?.text.trim() ?? '0';
+                      final marksNum = double.tryParse(obtained) ?? 0;
+                      final totNum = double.tryParse(totVal) ?? 50;
+                      final pctStr = totNum > 0 ? ((marksNum / totNum) * 100).toStringAsFixed(1) : '0';
+                      final gradeStr = _calcGrade(double.tryParse(pctStr) ?? 0);
+
+                      b.set(FirebaseFirestore.instance.collection('admins').doc(widget.aId).collection('tests').doc('$testVal-$r'), {
+                        'test': testVal, 'sub': subVal, 'tot': totVal, 'marks': obtained, 'pct': pctStr, 'grade': gradeStr, 'roll': r, 'date': curDate,
+                      });
+
+                      if (phone.isNotEmpty) {
+                        sendGovCloudSMS(context, phone, 'राजकीय कोचिंग: प्रिय अभिभावक, शिक्षार्थी $sName का $testVal ($subVal) का परिणाम: प्राप्तांक $obtained/$totVal ($pctStr%), ग्रेड: $gradeStr।');
+                      }
+                    }
+                    await b.commit();
+                    if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('मूल्यांकन रिपोर्ट सुरक्षित एवं प्रेषित हो गई! ✔')));
+                  },
+                ),
               )
             ],
           );
@@ -210,26 +298,26 @@ class _SearchModState extends State<SearchMod> {
             mainAxisSize: MainAxisSize.min,
             children: [
               Container(
-                color: const Color(0xFF0D253F),
+                color: const Color(0xFF07192C),
                 padding: const EdgeInsets.all(8),
                 child: Row(
                   children: [
                     Container(
-                      width: 26,
-                      height: 26,
+                      width: 28,
+                      height: 28,
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
                         border: Border.all(color: Colors.amber, width: 1.5),
-                        gradient: const RadialGradient(colors: [Color(0xFF2A4D69), Color(0xFF0D253F)]),
+                        gradient: const RadialGradient(colors: [Color(0xFF2A5298), Color(0xFF07192C)]),
                       ),
-                      child: const Center(child: Icon(Icons.shield, color: Colors.amber, size: 14)),
+                      child: const Center(child: Icon(Icons.workspace_premium, color: Colors.amber, size: 16)),
                     ),
                     const SizedBox(width: 8),
                     Expanded(child: Text(widget.org, style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold))),
                   ],
                 ),
               ),
-              Row(children: [Expanded(child: Container(height: 2, color: Colors.orange)), Expanded(child: Container(height: 2, color: Colors.white)), Expanded(child: Container(height: 2, color: Colors.green))]),
+              Row(children: [Expanded(child: Container(height: 2.5, color: Colors.orange)), Expanded(child: Container(height: 2.5, color: Colors.white)), Expanded(child: Container(height: 2.5, color: Colors.green))]),
               Padding(
                 padding: const EdgeInsets.all(12),
                 child: Column(
@@ -323,12 +411,18 @@ class _SearchModState extends State<SearchMod> {
                           builder: (ctx, ts) {
                             final tDocs = ts.data?.docs ?? [];
                             return Column(
-                              children: tDocs.map((doc) => Card(
-                                child: ListTile(
-                                  title: Text('${doc['test']} - ${doc['sub']}', style: const TextStyle(fontSize: 12)),
-                                  trailing: Text('${doc['marks']} / ${doc['tot']}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
-                                ),
-                              )).toList(),
+                              children: tDocs.map((doc) {
+                                final dMap = doc.data() as Map<String, dynamic>;
+                                final g = dMap['grade'] ?? '-';
+                                final p = dMap['pct'] ?? '-';
+                                return Card(
+                                  child: ListTile(
+                                    title: Text('${doc['test']} - ${doc['sub']}', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                                    subtitle: Text('प्रतिशत: $p% | ग्रेड: $g', style: const TextStyle(fontSize: 11, color: Colors.indigo)),
+                                    trailing: Text('${doc['marks']} / ${doc['tot']}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                                  ),
+                                );
+                              }).toList(),
                             );
                           },
                         ),
