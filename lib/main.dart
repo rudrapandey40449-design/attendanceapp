@@ -1,200 +1,90 @@
-import 'package:flutter/material.dart';
-import 'package:firebase_core/firebase_core.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:intl/intl.dart';
-import 'package:image_picker/image_picker.dart';
-import 'package:url_launcher/url_launcher.dart';
-
-void main() async {
-  WidgetsFlutterBinding.ensureInitialized();
-  try {
-    await Firebase.initializeApp(
-      options: const FirebaseOptions(
-        apiKey: 'AIzaSyCyezv6VO44lOP-wDRCNYuOHZ-wFtDycpk',
-        appId: '1:152984908526:android:78031fe79787a96224b9ff',
-        messagingSenderId: '152984908526',
-        projectId: 'attendance-app-9ac46',
-      ),
-    );
-  } catch (_) {}
-  runApp(const MaterialApp(home: AdminAuth(), debugShowCheckedModeBanner: false));
-}
-
-Future<void> sendGovSMS(String phone, String msg) async {
-  if (phone.isEmpty) return;
-  final cleanPhone = phone.replaceAll(RegExp(r'[^0-9+]'), '');
-  final Uri uri = Uri.parse('sms:$cleanPhone?body=${Uri.encodeComponent(msg)}');
-  try {
-    await launchUrl(uri, mode: LaunchMode.externalApplication);
-  } catch (_) {}
-}
-
-class GovHeader extends StatelessWidget {
-  final String title;
-  const GovHeader({super.key, required this.title});
+class UIDAIOverlayPainter extends CustomPainter {
   @override
-  Widget build(BuildContext context) {
-    return Column(
-      children: [
-        Container(
-          color: const Color(0xFF0D253F),
-          padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
-          child: Row(
-            children: [
-              const Icon(Icons.account_balance, color: Colors.amber, size: 28),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text('राष्ट्रीय प्रशिक्षण एवं कोचिंग प्रबंधन प्रणाली', style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold)),
-                    Text(title, style: const TextStyle(color: Colors.white70, fontSize: 10)),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-        Row(
-          children: [
-            Expanded(child: Container(height: 3, color: Colors.orange)),
-            Expanded(child: Container(height: 3, color: Colors.white)),
-            Expanded(child: Container(height: 3, color: Colors.green)),
-          ],
-        ),
-      ],
-    );
+  void paint(Canvas canvas, Size size) {
+    final paintBg = Paint()..color = Colors.black.withOpacity(0.72);
+    final center = Offset(size.width / 2, size.height * 0.42);
+    const double radius = 110.0;
+
+    final path = Path()
+      ..addRect(Rect.fromLTWH(0, 0, size.width, size.height))
+      ..addOval(Rect.fromCircle(center: center, radius: radius))
+      ..fillType = PathFillType.evenOdd;
+
+    canvas.drawPath(path, paintBg);
+
+    final ringPaint = Paint()
+      ..color = const Color(0xFF00E676)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 3.5;
+
+    canvas.drawCircle(center, radius, ringPaint);
   }
-}
 
-class AdminAuth extends StatefulWidget {
-  const AdminAuth({super.key});
   @override
-  State<AdminAuth> createState() => _AdminAuthState();
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
 
-class _AdminAuthState extends State<AdminAuth> {
-  final _id = TextEditingController(), _pw = TextEditingController(), _org = TextEditingController();
-  bool isReg = false, _load = false;
+class FaceScanDialog extends StatefulWidget {
+  final String stdName;
+  const FaceScanDialog({super.key, required this.stdName});
 
-  Future<void> _sub() async {
-    final id = _id.text.trim().toLowerCase(), pw = _pw.text.trim(), org = _org.text.trim();
-    if (id.isEmpty || pw.isEmpty) return;
-    setState(() => _load = true);
-    final ref = FirebaseFirestore.instance.collection('admins').doc(id);
-    final doc = await ref.get();
-    if (isReg) {
-      if (doc.exists) {
-        if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('आईडी पहले से पंजीकृत है!')));
-      } else {
-        await ref.set({'id': id, 'pw': pw, 'org': org.isEmpty ? 'राजकीय कोचिंग केंद्र' : org});
-        _go(id, org.isEmpty ? 'राजकीय कोचिंग केंद्र' : org);
-      }
+  @override
+  State<FaceScanDialog> createState() => _FaceScanDialogState();
+}
+
+class _FaceScanDialogState extends State<FaceScanDialog> {
+  final ImagePicker _picker = ImagePicker();
+  bool _verifying = false;
+
+  void _startCamera() async {
+    setState(() => _verifying = true);
+    final XFile? photo = await _picker.pickImage(
+      source: ImageSource.camera,
+      preferredCameraDevice: CameraDevice.front,
+    );
+    if (photo != null) {
+      if (mounted) Navigator.pop(context, true);
     } else {
-      if (doc.exists && doc.data()?['pw'] == pw) {
-        _go(id, doc.data()?['org'] ?? 'राजकीय कोचिंग केंद्र');
-      } else {
-        if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('अमान्य विभागीय क्रेडेंशियल!')));
-      }
+      if (mounted) setState(() => _verifying = false);
     }
-    if (mounted) setState(() => _load = false);
   }
-
-  void _go(String id, String org) => Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => Dashboard(aId: id, org: org)));
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFFF4F6F9),
-      body: SafeArea(
-        child: Column(
-          children: [
-            const GovHeader(title: 'विभागीय अधिकृत लॉगिन पोर्टल'),
-            Expanded(
-              child: Center(
-                child: SingleChildScrollView(
-                  padding: const EdgeInsets.all(16),
-                  child: Card(
-                    elevation: 4,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                    child: Padding(
-                      padding: const EdgeInsets.all(16),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Icon(Icons.verified_user, size: 40, color: Color(0xFF0D253F)),
-                          const SizedBox(height: 6),
-                          Text(isReg ? 'नवीन अधिकृत केंद्र पंजीकरण' : 'विभागीय अधिकारी लॉगिन', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: Color(0xFF0D253F))),
-                          const Divider(height: 20),
-                          if (isReg) TextField(controller: _org, decoration: const InputDecoration(labelText: 'संस्था / केंद्र का नाम', border: OutlineInputBorder(), isDense: true)),
-                          if (isReg) const SizedBox(height: 10),
-                          TextField(controller: _id, decoration: const InputDecoration(labelText: 'विभागीय यूज़रनेम (ID)', border: OutlineInputBorder(), isDense: true)),
-                          const SizedBox(height: 10),
-                          TextField(controller: _pw, obscureText: true, decoration: const InputDecoration(labelText: 'सुरक्षा पासवर्ड', border: OutlineInputBorder(), isDense: true)),
-                          const SizedBox(height: 14),
-                          ElevatedButton(
-                            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF0D253F), foregroundColor: Colors.white, minimumSize: const Size.fromHeight(42)),
-                            onPressed: _load ? null : _sub,
-                            child: _load ? const CircularProgressIndicator(color: Colors.white) : Text(isReg ? 'पंजीकरण सुरक्षित करें' : 'सत्यापित करें एवं प्रवेश लें'),
-                          ),
-                          TextButton(onPressed: () => setState(() => isReg = !isReg), child: Text(isReg ? 'पोर्टल पर लॉगिन करें' : 'नवीन केंद्र का पंजीकरण करें')),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class Dashboard extends StatelessWidget {
-  final String aId, org;
-  const Dashboard({super.key, required this.aId, required this.org});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFFF4F6F9),
-      appBar: AppBar(
-        title: Text(org, style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.bold)),
-        backgroundColor: const Color(0xFF0D253F),
-        actions: [IconButton(icon: const Icon(Icons.power_settings_new, color: Colors.white), onPressed: () => Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const AdminAuth())))],
-      ),
-      body: Column(
+    return Dialog(
+      backgroundColor: Colors.transparent,
+      insetPadding: EdgeInsets.zero,
+      child: Stack(
         children: [
-          Row(
-            children: [
-              Expanded(child: Container(height: 3, color: Colors.orange)),
-              Expanded(child: Container(height: 3, color: Colors.white)),
-              Expanded(child: Container(height: 3, color: Colors.green)),
-            ],
-          ),
-          Expanded(
-            child: ListView(
-              padding: const EdgeInsets.all(12),
+          CustomPaint(size: MediaQuery.of(context).size, painter: UIDAIOverlayPainter()),
+          Positioned(
+            top: 40,
+            left: 20,
+            right: 20,
+            child: Column(
               children: [
-                Container(
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(color: const Color(0xFF0D253F), borderRadius: BorderRadius.circular(6)),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text('अधिकृत कोड: $aId', style: const TextStyle(color: Colors.amber, fontWeight: FontWeight.bold, fontSize: 12)),
-                      Text('दिनांक: ${DateFormat('dd-MM-yyyy').format(DateTime.now())}', style: const TextStyle(color: Colors.white70, fontSize: 11)),
-                    ],
-                  ),
+                const Icon(Icons.verified_user, color: Colors.amber, size: 36),
+                const SizedBox(height: 6),
+                const Text('UIDAI स्टाइल लाइव बायोमेट्रिक सत्यापन', style: TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold)),
+                Text('शिक्षार्थी: ${widget.stdName}', style: const TextStyle(color: Colors.white70, fontSize: 12)),
+              ],
+            ),
+          ),
+          Positioned(
+            bottom: 60,
+            left: 30,
+            right: 30,
+            child: Column(
+              children: [
+                const Text('कृपया चेहरे को वृत्त के केंद्र में स्थिर रखें...', style: TextStyle(color: Colors.white, fontSize: 12)),
+                const SizedBox(height: 14),
+                ElevatedButton.icon(
+                  style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF00E676), foregroundColor: Colors.black, minimumSize: const Size.fromHeight(45)),
+                  icon: const Icon(Icons.camera_alt),
+                  label: Text(_verifying ? 'सत्यापन प्रक्रियाधीन...' : 'स्कैन आरंभ करें'),
+                  onPressed: _verifying ? null : _startCamera,
                 ),
-                const SizedBox(height: 12),
-                _tile(context, 'दैनिक बायोमेट्रिक उपस्थिति (Face Verification & SMS)', Icons.camera_front, Colors.teal, AttMod(aId: aId, org: org)),
-                _tile(context, 'राजस्व एवं शुल्क संधारण (Fee Receipt & SMS)', Icons.receipt_long, Colors.green.shade700, FeeMod(aId: aId, org: org)),
-                _tile(context, 'शैक्षणिक मूल्यांकन एवं प्राप्तांक (Test Ledger)', Icons.assignment_turned_in, Colors.indigo, TestMod(aId: aId)),
-                _tile(context, 'नवीन शिक्षार्थी नामांकन (Student Enrolment)', Icons.person_add_alt_1, Colors.blue.shade800, AddStdMod(aId: aId)),
-                _tile(context, 'डिजिटल शिक्षार्थी रिकॉर्ड एवं पहचान पत्र (Dossier & ID)', Icons.badge, Colors.deepOrange, SearchMod(aId: aId, org: org)),
+                TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('रद्द करें', style: TextStyle(color: Colors.white70))),
               ],
             ),
           ),
@@ -202,64 +92,8 @@ class Dashboard extends StatelessWidget {
       ),
     );
   }
-
-  Widget _tile(BuildContext c, String t, IconData i, Color cl, Widget p) => Card(
-    elevation: 2,
-    margin: const EdgeInsets.only(bottom: 10),
-    child: ListTile(
-      leading: CircleAvatar(backgroundColor: cl.withOpacity(0.15), child: Icon(i, color: cl, size: 22)),
-      title: Text(t, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Color(0xFF0D253F))),
-      trailing: const Icon(Icons.arrow_forward_ios, size: 14, color: Colors.grey),
-      onTap: () => Navigator.push(c, MaterialPageRoute(builder: (_) => p)),
-    ),
-  );
 }
 
-class AddStdMod extends StatefulWidget {
-  final String aId;
-  const AddStdMod({super.key, required this.aId});
-  @override
-  State<AddStdMod> createState() => _AddStdModState();
-}
-
-class _AddStdModState extends State<AddStdMod> {
-  final _n = TextEditingController(), _r = TextEditingController(), _p = TextEditingController(), _f = TextEditingController(), _c = TextEditingController(), _a = TextEditingController();
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('शिक्षार्थी नामांकन पंजिका'), backgroundColor: const Color(0xFF0D253F), foregroundColor: Colors.white),
-      body: ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          TextField(controller: _n, decoration: const InputDecoration(labelText: 'शिक्षार्थी का पूरा नाम *', border: OutlineInputBorder(), isDense: true)),
-          const SizedBox(height: 10),
-          TextField(controller: _r, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'विभागीय अनुक्रमांक (Roll No) *', border: OutlineInputBorder(), isDense: true)),
-          const SizedBox(height: 10),
-          TextField(controller: _p, keyboardType: TextInputType.phone, decoration: const InputDecoration(labelText: 'अभिभावक का दूरभाष (मोबाइल) *', border: OutlineInputBorder(), isDense: true)),
-          const SizedBox(height: 10),
-          TextField(controller: _f, decoration: const InputDecoration(labelText: 'पिता / संरक्षक का नाम', border: OutlineInputBorder(), isDense: true)),
-          const SizedBox(height: 10),
-          TextField(controller: _c, decoration: const InputDecoration(labelText: 'प्रवेशित कक्षा / संवर्ग (उदा. 11th Science)', border: OutlineInputBorder(), isDense: true)),
-          const SizedBox(height: 10),
-          TextField(controller: _a, decoration: const InputDecoration(labelText: 'स्थाई पता', border: OutlineInputBorder(), isDense: true)),
-          const SizedBox(height: 16),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF0D253F), foregroundColor: Colors.white, minimumSize: const Size.fromHeight(42)),
-            onPressed: () async {
-              if (_n.text.isNotEmpty && _r.text.isNotEmpty) {
-                await FirebaseFirestore.instance.collection('admins').doc(widget.aId).collection('students').doc(_r.text.trim()).set({
-                  'name': _n.text.trim(), 'roll': _r.text.trim(), 'phone': _p.text.trim(), 'father': _f.text.trim(), 'class': _c.text.trim().isEmpty ? '11th' : _c.text.trim(), 'address': _a.text.trim(), 'regDate': DateFormat('dd-MM-yyyy').format(DateTime.now()),
-                });
-                if (mounted) Navigator.pop(context);
-              }
-            },
-            child: const Text('अभिलेख राष्ट्रीय डेटाबेस में सुरक्षित करें'),
-          )
-        ],
-      ),
-    );
-  }
-}
 class AttMod extends StatefulWidget {
   final String aId, org;
   const AttMod({super.key, required this.aId, required this.org});
@@ -270,13 +104,19 @@ class AttMod extends StatefulWidget {
 class _AttModState extends State<AttMod> {
   DateTime _dt = DateTime.now();
   final Map<String, bool> _st = {}, _face = {};
-  final ImagePicker _picker = ImagePicker();
   String get _dKey => DateFormat('yyyy-MM-dd').format(_dt);
 
-  Future<void> _scan(String roll) async {
-    final XFile? photo = await _picker.pickImage(source: ImageSource.camera, preferredCameraDevice: CameraDevice.front);
-    if (photo != null) {
-      setState(() { _face[roll] = true; _st[roll] = true; });
+  Future<void> _scanUIDAI(String roll, String name) async {
+    final bool? verified = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => FaceScanDialog(stdName: name),
+    );
+    if (verified == true) {
+      setState(() {
+        _face[roll] = true;
+        _st[roll] = true;
+      });
     }
   }
 
@@ -332,26 +172,26 @@ class _AttModState extends State<AttMod> {
                           margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                           child: ListTile(
                             title: Text('$sName (अनुक्रमांक: $r)', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-                            subtitle: Text(isP ? (isV ? 'बायोमेट्रिक: प्रमाणित ✔ | उपस्थित' : 'मैन्युअल उपस्थित ✔') : 'अनुपस्थित (Absent) ✖', style: TextStyle(color: isP ? Colors.green.shade700 : Colors.red, fontSize: 11)),
+                            subtitle: Text(isP ? (isV ? 'UIDAI बायोमेट्रिक प्रमाणित ✔' : 'उपस्थित ✔') : 'अनुपस्थित ✖', style: TextStyle(color: isP ? Colors.green.shade700 : Colors.red, fontSize: 11)),
                             trailing: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
                                 ElevatedButton(
-                                  style: ElevatedButton.styleFrom(backgroundColor: isP ? Colors.green.shade700 : Colors.grey.shade400, foregroundColor: Colors.white, minimumSize: const Size(40, 30)),
+                                  style: ElevatedButton.styleFrom(backgroundColor: isP ? Colors.green.shade700 : Colors.grey.shade400, foregroundColor: Colors.white, minimumSize: const Size(36, 30)),
                                   onPressed: () => setState(() => _st[r] = !(isP)),
                                   child: Text(isP ? 'P' : 'A', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
                                 ),
                                 const SizedBox(width: 4),
                                 ElevatedButton.icon(
-                                  style: ElevatedButton.styleFrom(backgroundColor: isV ? Colors.green.shade700 : const Color(0xFF0D253F), foregroundColor: Colors.white, minimumSize: const Size(60, 30)),
-                                  icon: const Icon(Icons.camera_front, size: 14),
+                                  style: ElevatedButton.styleFrom(backgroundColor: isV ? Colors.green.shade700 : const Color(0xFF0D253F), foregroundColor: Colors.white, minimumSize: const Size(54, 30)),
+                                  icon: const Icon(Icons.face, size: 14),
                                   label: Text(isV ? 'प्रमाणित' : 'सत्यापन', style: const TextStyle(fontSize: 10)),
-                                  onPressed: () => _scan(r),
+                                  onPressed: () => _scanUIDAI(r, sName),
                                 ),
                                 if (!isP && phone.isNotEmpty)
                                   IconButton(
-                                    icon: const Icon(Icons.sms, color: Colors.red, size: 22),
-                                    onPressed: () => sendGovSMS(phone, 'राजकीय प्रबंधन प्रणाली (${widget.org}): प्रिय अभिभावक, आपका पाल्य $sName (अनुक्रमांक: $r) आज दिनांक $_dKey को कक्षा से अनुपस्थित है।'),
+                                    icon: const Icon(Icons.sms, color: Colors.red, size: 20),
+                                    onPressed: () => sendGovCloudSMS(context, phone, 'राजकीय कोचिंग (${widget.org}): प्रिय अभिभावक, आपका पाल्य $sName (अनुक्रमांक: $r) आज दिनांक $_dKey को कक्षा से अनुपस्थित है। संस्थान संपर्क: 7393899011'),
                                   ),
                               ],
                             ),
@@ -375,7 +215,7 @@ class _AttModState extends State<AttMod> {
                   b.set(ref, {'date': _dKey, 'roll': r, 'status': p ? 'Present' : 'Absent', 'face': _face[r] ?? false, 'timestamp': FieldValue.serverTimestamp()});
                 });
                 await b.commit();
-                if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('उपस्थिति पंजिका सफलतापूर्वक लॉक की गई!')));
+                if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('उपस्थिति पंजिका लॉक हो गई!')));
               },
               child: Text('$_dKey का दैनिक हाजिरी डेटा लॉक करें'),
             ),
@@ -402,7 +242,16 @@ class FeeMod extends StatelessWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(Icons.account_balance, color: Color(0xFF0D253F), size: 36),
+              Container(
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  border: Border.all(color: Colors.amber, width: 2),
+                  gradient: const RadialGradient(colors: [Color(0xFF2A4D69), Color(0xFF0D253F)]),
+                ),
+                child: const Center(child: Icon(Icons.shield, color: Colors.amber, size: 20)),
+              ),
               const SizedBox(height: 4),
               Text(org, textAlign: TextAlign.center, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
               const Text('राजकीय डिजिटल शुल्क प्राप्ति रसीद', style: TextStyle(fontSize: 11, color: Colors.grey)),
@@ -422,7 +271,7 @@ class FeeMod extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 8),
-              const Text('यह रसीद कंप्यूटर जनित एवं डिजिटल रूप से अधिकृत है।', style: TextStyle(fontSize: 8, color: Colors.grey)),
+              const Text('संस्थान संपर्क सूत्र: 7393899011', style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: Color(0xFF0D253F))),
             ],
           ),
         ),
@@ -465,7 +314,7 @@ class FeeMod extends StatelessWidget {
                           if (isP && phone.isNotEmpty)
                             IconButton(
                               icon: const Icon(Icons.sms, color: Colors.green, size: 20),
-                              onPressed: () => sendGovSMS(phone, 'राजकीय प्रबंधन प्रणाली ($org): प्रिय अभिभावक, शिक्षार्थी $sName (अनुक्रमांक: $r) का माह $m का शुल्क सफलतापूर्वक प्राप्त हो गया है। रसीद सं.: REC-$r। धन्यवाद।'),
+                              onPressed: () => sendGovCloudSMS(context, phone, 'राजकीय कोचिंग ($org): प्रिय अभिभावक, शिक्षार्थी $sName (अनुक्रमांक: $r) का माह $m का शुल्क प्राप्त हुआ। रसीद सं: REC-$r। संपर्क: 7393899011'),
                             ),
                           ElevatedButton(
                             style: ElevatedButton.styleFrom(backgroundColor: isP ? Colors.green.shade700 : Colors.red, foregroundColor: Colors.white),
@@ -547,7 +396,7 @@ class _TestModState extends State<TestMod> {
                     });
                   }
                   await b.commit();
-                  if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('अभिलेख सुरक्षित हो गया!')));
+                  if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('मूल्यांकन सुरक्षित हो गया!')));
                 },
                 child: const Text('मूल्यांकन डेटा सुरक्षित करें'),
               )
@@ -586,7 +435,16 @@ class _SearchModState extends State<SearchMod> {
                 padding: const EdgeInsets.all(8),
                 child: Row(
                   children: [
-                    const Icon(Icons.account_balance, color: Colors.amber, size: 24),
+                    Container(
+                      width: 26,
+                      height: 26,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        border: Border.all(color: Colors.amber, width: 1.5),
+                        gradient: const RadialGradient(colors: [Color(0xFF2A4D69), Color(0xFF0D253F)]),
+                      ),
+                      child: const Center(child: Icon(Icons.shield, color: Colors.amber, size: 14)),
+                    ),
                     const SizedBox(width: 8),
                     Expanded(child: Text(widget.org, style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold))),
                   ],
@@ -620,14 +478,9 @@ class _SearchModState extends State<SearchMod> {
 
   @override
   Widget build(BuildContext context) {
-        return Scaffold(
-      appBar: AppBar(
-        title: const Text('शिक्षार्थी डोजियर'),
-        backgroundColor: const Color(0xFF0D253F),
-        foregroundColor: Colors.white,
-      ),
+    return Scaffold(
+      appBar: AppBar(title: const Text('डिजिटल शिक्षार्थी डोजियर'), backgroundColor: const Color(0xFF0D253F), foregroundColor: Colors.white),
       body: Padding(
-        
         padding: const EdgeInsets.all(12),
         child: Column(
           children: [
@@ -707,6 +560,210 @@ class _SearchModState extends State<SearchMod> {
               ),
           ],
         ),
+      ),
+    );
+  }
+}
+class Dashboard extends StatelessWidget {
+  final String aId, org;
+  const Dashboard({super.key, required this.aId, required this.org});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFFF4F6F9),
+      appBar: AppBar(
+        title: Text(org, style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.bold)),
+        backgroundColor: const Color(0xFF0D253F),
+        actions: [IconButton(icon: const Icon(Icons.power_settings_new, color: Colors.white), onPressed: () => Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const AdminAuth())))],
+      ),
+      body: Column(
+        children: [
+          Row(
+            children: [
+              Expanded(child: Container(height: 3, color: Colors.orange)),
+              Expanded(child: Container(height: 3, color: Colors.white)),
+              Expanded(child: Container(height: 3, color: Colors.green)),
+            ],
+          ),
+          Expanded(
+            child: ListView(
+              padding: const EdgeInsets.all(12),
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(color: const Color(0xFF0D253F), borderRadius: BorderRadius.circular(6)),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text('अधिकृत कोड: $aId', style: const TextStyle(color: Colors.amber, fontWeight: FontWeight.bold, fontSize: 12)),
+                      Text('दिनांक: ${DateFormat('dd-MM-yyyy').format(DateTime.now())}', style: const TextStyle(color: Colors.white70, fontSize: 11)),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 12),
+                _tile(context, 'दैनिक बायोमेट्रिक उपस्थिति (Face RD & Cloud SMS)', Icons.face, Colors.teal, AttMod(aId: aId, org: org)),
+                _tile(context, 'राजस्व एवं शुल्क संधारण (Fee Receipt & SMS)', Icons.receipt_long, Colors.green.shade700, FeeMod(aId: aId, org: org)),
+                _tile(context, 'शैक्षणिक मूल्यांकन एवं प्राप्तांक (Test Ledger)', Icons.assignment_turned_in, Colors.indigo, TestMod(aId: aId)),
+                _tile(context, 'नवीन शिक्षार्थी नामांकन (Student Enrolment)', Icons.person_add_alt_1, Colors.blue.shade800, AddStdMod(aId: aId)),
+                _tile(context, 'डिजिटल शिक्षार्थी रिकॉर्ड एवं पहचान पत्र (Dossier & ID)', Icons.badge, Colors.deepOrange, SearchMod(aId: aId, org: org)),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _tile(BuildContext c, String t, IconData i, Color cl, Widget p) => Card(
+    elevation: 2,
+    margin: const EdgeInsets.only(bottom: 10),
+    child: ListTile(
+      leading: CircleAvatar(backgroundColor: cl.withOpacity(0.15), child: Icon(i, color: cl, size: 22)),
+      title: Text(t, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Color(0xFF0D253F))),
+      trailing: const Icon(Icons.arrow_forward_ios, size: 14, color: Colors.grey),
+      onTap: () => Navigator.push(c, MaterialPageRoute(builder: (_) => p)),
+    ),
+  );
+}
+
+class AddStdMod extends StatefulWidget {
+  final String aId;
+  const AddStdMod({super.key, required this.aId});
+  @override
+  State<AddStdMod> createState() => _AddStdModState();
+}
+
+class _AddStdModState extends State<AddStdMod> {
+  final _n = TextEditingController(), _r = TextEditingController(), _p = TextEditingController(), _f = TextEditingController(), _c = TextEditingController(), _a = TextEditingController();
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('शिक्षार्थी नामांकन पंजिका'), backgroundColor: const Color(0xFF0D253F), foregroundColor: Colors.white),
+      body: ListView(
+        padding: const EdgeInsets.all(16),
+        children: [
+          TextField(controller: _n, decoration: const InputDecoration(labelText: 'शिक्षार्थी का पूरा नाम *', border: OutlineInputBorder(), isDense: true)),
+          const SizedBox(height: 10),
+          TextField(controller: _r, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'विभागीय अनुक्रमांक (Roll No) *', border: OutlineInputBorder(), isDense: true)),
+          const SizedBox(height: 10),
+          TextField(controller: _p, keyboardType: TextInputType.phone, decoration: const InputDecoration(labelText: 'अभिभावक का दूरभाष (मोबाइल) *', border: OutlineInputBorder(), isDense: true)),
+          const SizedBox(height: 10),
+          TextField(controller: _f, decoration: const InputDecoration(labelText: 'पिता / संरक्षक का नाम', border: OutlineInputBorder(), isDense: true)),
+          const SizedBox(height: 10),
+          TextField(controller: _c, decoration: const InputDecoration(labelText: 'प्रवेशित कक्षा / संवर्ग (उदा. 11th Science)', border: OutlineInputBorder(), isDense: true)),
+          const SizedBox(height: 10),
+          TextField(controller: _a, decoration: const InputDecoration(labelText: 'स्थाई पता', border: OutlineInputBorder(), isDense: true)),
+          const SizedBox(height: 16),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF0D253F), foregroundColor: Colors.white, minimumSize: const Size.fromHeight(42)),
+            onPressed: () async {
+              if (_n.text.isNotEmpty && _r.text.isNotEmpty) {
+                await FirebaseFirestore.instance.collection('admins').doc(widget.aId).collection('students').doc(_r.text.trim()).set({
+                  'name': _n.text.trim(), 'roll': _r.text.trim(), 'phone': _p.text.trim(), 'father': _f.text.trim(), 'class': _c.text.trim().isEmpty ? '11th' : _c.text.trim(), 'address': _a.text.trim(), 'regDate': DateFormat('dd-MM-yyyy').format(DateTime.now()),
+                });
+                if (mounted) Navigator.pop(context);
+              }
+            },
+            child: const Text('अभिलेख राष्ट्रीय डेटाबेस में सुरक्षित करें'),
+          )
+        ],
+      ),
+    );
+  }
+}
+
+class UIDAIOverlayPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paintBg = Paint()..color = Colors.black.withOpacity(0.72);
+    final center = Offset(size.width / 2, size.height * 0.42);
+    const double radius = 110.0;
+
+    final path = Path()
+      ..addRect(Rect.fromLTWH(0, 0, size.width, size.height))
+      ..addOval(Rect.fromCircle(center: center, radius: radius))
+      ..fillType = PathFillType.evenOdd;
+
+    canvas.drawPath(path, paintBg);
+
+    final ringPaint = Paint()
+      ..color = const Color(0xFF00E676)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 3.5;
+
+    canvas.drawCircle(center, radius, ringPaint);
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
+
+class FaceScanDialog extends StatefulWidget {
+  final String stdName;
+  const FaceScanDialog({super.key, required this.stdName});
+
+  @override
+  State<FaceScanDialog> createState() => _FaceScanDialogState();
+}
+
+class _FaceScanDialogState extends State<FaceScanDialog> {
+  final ImagePicker _picker = ImagePicker();
+  bool _verifying = false;
+
+  void _startCamera() async {
+    setState(() => _verifying = true);
+    final XFile? photo = await _picker.pickImage(
+      source: ImageSource.camera,
+      preferredCameraDevice: CameraDevice.front,
+    );
+    if (photo != null) {
+      if (mounted) Navigator.pop(context, true);
+    } else {
+      if (mounted) setState(() => _verifying = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      backgroundColor: Colors.transparent,
+      insetPadding: EdgeInsets.zero,
+      child: Stack(
+        children: [
+          CustomPaint(size: MediaQuery.of(context).size, painter: UIDAIOverlayPainter()),
+          Positioned(
+            top: 40,
+            left: 20,
+            right: 20,
+            child: Column(
+              children: [
+                const Icon(Icons.verified_user, color: Colors.amber, size: 36),
+                const SizedBox(height: 6),
+                const Text('UIDAI स्टाइल लाइव बायोमेट्रिक सत्यापन', style: TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold)),
+                Text('शिक्षार्थी: ${widget.stdName}', style: const TextStyle(color: Colors.white70, fontSize: 12)),
+              ],
+            ),
+          ),
+          Positioned(
+            bottom: 60,
+            left: 30,
+            right: 30,
+            child: Column(
+              children: [
+                const Text('कृपया चेहरे को वृत्त के केंद्र में स्थिर रखें...', style: TextStyle(color: Colors.white, fontSize: 12)),
+                const SizedBox(height: 14),
+                ElevatedButton.icon(
+                  style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF00E676), foregroundColor: Colors.black, minimumSize: const Size.fromHeight(45)),
+                  icon: const Icon(Icons.camera_alt),
+                  label: Text(_verifying ? 'सत्यापन प्रक्रियाधीन...' : 'स्कैन आरंभ करें'),
+                  onPressed: _verifying ? null : _startCamera,
+                ),
+                TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('रद्द करें', style: TextStyle(color: Colors.white70))),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
