@@ -142,8 +142,8 @@ class Dashboard extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 12),
-                _tile(context, 'दैनिक बायोमेट्रिक उपस्थिति (UIDAI Face & SMS)', Icons.face, Colors.teal, AttMod(aId: aId, org: org)),
-                _tile(context, 'राजस्व एवं शुल्क संधारण (Fee Receipt & SMS)', Icons.receipt_long, Colors.green.shade700, FeeMod(aId: aId, org: org)),
+                _tile(context, 'दैनिक बायोमेट्रिक उपस्थिति (Auto-SMS Active)', Icons.face, Colors.teal, AttMod(aId: aId, org: org)),
+                _tile(context, 'राजस्व एवं शुल्क संधारण (Auto Receipt Active)', Icons.receipt_long, Colors.green.shade700, FeeMod(aId: aId, org: org)),
                 _tile(context, 'शैक्षणिक मूल्यांकन एवं प्राप्तांक (Test Ledger)', Icons.assignment_turned_in, Colors.indigo, TestMod(aId: aId)),
                 _tile(context, 'नवीन शिक्षार्थी नामांकन (Student Enrolment)', Icons.person_add_alt_1, Colors.blue.shade800, AddStdMod(aId: aId)),
                 _tile(context, 'डिजिटल शिक्षार्थी रिकॉर्ड एवं पहचान पत्र (Dossier & ID)', Icons.badge, Colors.deepOrange, SearchMod(aId: aId, org: org)),
@@ -226,14 +226,21 @@ class _AttModState extends State<AttMod> {
   final Map<String, bool> _st = {}, _face = {};
   String get _dKey => DateFormat('yyyy-MM-dd').format(_dt);
 
-  Future<void> _scanUIDAI(String roll, String name) async {
+  Future<void> _scanUIDAI(String roll, String name, String phone) async {
     final bool? verified = await showDialog<bool>(
       context: context,
       barrierDismissible: false,
       builder: (_) => FaceScanDialog(stdName: name),
     );
     if (verified == true) {
-      setState(() { _face[roll] = true; _st[roll] = true; });
+      setState(() {
+        _face[roll] = true;
+        _st[roll] = true;
+      });
+      // चेहरा प्रमाणित होते ही ऑटो-SMS
+      if (phone.isNotEmpty) {
+        sendGovCloudSMS(context, phone, 'राजकीय कोचिंग (${widget.org}): प्रिय अभिभावक, शिक्षार्थी $name (अनुक्रमांक: $roll) आज दिनांक $_dKey को UIDAI बायोमेट्रिक चेहरे द्वारा प्रमाणित होकर कक्षा में उपस्थित है।');
+      }
     }
   }
 
@@ -289,13 +296,24 @@ class _AttModState extends State<AttMod> {
                           margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                           child: ListTile(
                             title: Text('$sName (अनुक्रमांक: $r)', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-                            subtitle: Text(isP ? (isV ? 'UIDAI बायोमेट्रिक प्रमाणित ✔' : 'उपस्थित ✔') : 'अनुपस्थित ✖', style: TextStyle(color: isP ? Colors.green.shade700 : Colors.red, fontSize: 11)),
+                            subtitle: Text(isP ? (isV ? 'UIDAI बायोमेट्रिक प्रमाणित ✔' : 'उपस्थित ✔ (SMS Sent)') : 'अनुपस्थित ✖ (Auto-Alert Ready)', style: TextStyle(color: isP ? Colors.green.shade700 : Colors.red, fontSize: 11)),
                             trailing: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
                                 ElevatedButton(
                                   style: ElevatedButton.styleFrom(backgroundColor: isP ? Colors.green.shade700 : Colors.grey.shade400, foregroundColor: Colors.white, minimumSize: const Size(36, 30)),
-                                  onPressed: () => setState(() => _st[r] = !(isP)),
+                                  onPressed: () {
+                                    final nextState = !isP;
+                                    setState(() => _st[r] = nextState);
+                                    // 1-टैप ऑटो SMS ट्रिगर
+                                    if (phone.isNotEmpty) {
+                                      if (nextState) {
+                                        sendGovCloudSMS(context, phone, 'राजकीय कोचिंग (${widget.org}): प्रिय अभिभावक, शिक्षार्थी $sName (अनुक्रमांक: $r) आज दिनांक $_dKey को कक्षा में उपस्थित है।');
+                                      } else {
+                                        sendGovCloudSMS(context, phone, 'राजकीय कोचिंग (${widget.org}): प्रिय अभिभावक, आपका पाल्य $sName (अनुक्रमांक: $r) आज दिनांक $_dKey को कक्षा से अनुपस्थित है। संस्थान संपर्क: 7393899011');
+                                      }
+                                    }
+                                  },
                                   child: Text(isP ? 'P' : 'A', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
                                 ),
                                 const SizedBox(width: 4),
@@ -303,13 +321,8 @@ class _AttModState extends State<AttMod> {
                                   style: ElevatedButton.styleFrom(backgroundColor: isV ? Colors.green.shade700 : const Color(0xFF0D253F), foregroundColor: Colors.white, minimumSize: const Size(54, 30)),
                                   icon: const Icon(Icons.face, size: 14),
                                   label: Text(isV ? 'प्रमाणित' : 'सत्यापन', style: const TextStyle(fontSize: 10)),
-                                  onPressed: () => _scanUIDAI(r, sName),
+                                  onPressed: () => _scanUIDAI(r, sName, phone),
                                 ),
-                                if (!isP && phone.isNotEmpty)
-                                  IconButton(
-                                    icon: const Icon(Icons.sms, color: Colors.red, size: 20),
-                                    onPressed: () => sendGovCloudSMS(context, phone, 'राजकीय कोचिंग (${widget.org}): प्रिय अभिभावक, आपका पाल्य $sName (अनुक्रमांक: $r) आज दिनांक $_dKey को कक्षा से अनुपस्थित है। संस्थान संपर्क: 7393899011'),
-                                  ),
                               ],
                             ),
                           ),
@@ -332,7 +345,7 @@ class _AttModState extends State<AttMod> {
                   b.set(ref, {'date': _dKey, 'roll': r, 'status': p ? 'Present' : 'Absent', 'face': _face[r] ?? false, 'timestamp': FieldValue.serverTimestamp()});
                 });
                 await b.commit();
-                if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('उपस्थिति पंजिका लॉक हो गई!')));
+                if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('उपस्थिति पंजिका सुरक्षित एवं लॉक हो गई!')));
               },
               child: Text('$_dKey का दैनिक हाजिरी डेटा लॉक करें'),
             ),
