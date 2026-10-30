@@ -5,9 +5,8 @@ import 'package:intl/intl.dart';
 import 'widgets.dart';
 import 'modules.dart';
 
-void main() async {
+void main() {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp();
   runApp(const GovAttendanceApp());
 }
 
@@ -19,14 +18,90 @@ class GovAttendanceApp extends StatelessWidget {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       title: 'राष्ट्रीय कोचिंग पोर्टल',
-
       theme: ThemeData(
         primaryColor: const Color(0xFF07192C),
         scaffoldBackgroundColor: const Color(0xFFF1F5F9),
-        fontFamily: 'Roboto',
       ),
-      home: const AuthScreen(),
+      home: const FirebaseInitWrapper(),
     );
+  }
+}
+
+class FirebaseInitWrapper extends StatefulWidget {
+  const FirebaseInitWrapper({super.key});
+
+  @override
+  State<FirebaseInitWrapper> createState() => _FirebaseInitWrapperState();
+}
+
+class _FirebaseInitWrapperState extends State<FirebaseInitWrapper> {
+  bool _initialized = false;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _startFirebase();
+  }
+
+  Future<void> _startFirebase() async {
+    try {
+      await Firebase.initializeApp();
+      if (mounted) setState(() => _initialized = true);
+    } catch (e) {
+      if (mounted) setState(() => _error = e.toString());
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_error != null) {
+      return Scaffold(
+        backgroundColor: const Color(0xFF07192C),
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.error_outline, color: Colors.amber, size: 48),
+                const SizedBox(height: 12),
+                const Text('कनेक्शन में समस्या आई', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 6),
+                Text(_error!, textAlign: TextAlign.center, style: const TextStyle(color: Colors.white70, fontSize: 11)),
+                const SizedBox(height: 16),
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFFFD700), foregroundColor: Colors.black),
+                  onPressed: () {
+                    setState(() { _error = null; });
+                    _startFirebase();
+                  },
+                  child: const Text('पुनः प्रयास करें'),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
+    if (!_initialized) {
+      return const Scaffold(
+        backgroundColor: Color(0xFF07192C),
+        body: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              CircularProgressIndicator(color: Color(0xFFFFD700)),
+              SizedBox(height: 16),
+              Text('राष्ट्रीय कोचिंग पोर्टल लोड हो रहा है...', style: TextStyle(color: Colors.white, fontSize: 13, letterSpacing: 0.5)),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return const AuthScreen();
   }
 }
 
@@ -272,7 +347,6 @@ class _AttScreenState extends State<AttScreen> {
                                     ],
                                   ),
                                 ),
-                                // Present Button (P)
                                 InkWell(
                                   onTap: () {
                                     FirebaseFirestore.instance.collection('admins').doc(widget.aId).collection('attendance').doc('$dStr-$r').set({
@@ -290,7 +364,6 @@ class _AttScreenState extends State<AttScreen> {
                                     child: Center(child: Text('P', style: TextStyle(fontWeight: FontWeight.bold, color: isP ? Colors.white : Colors.black87))),
                                   ),
                                 ),
-                                // Absent Button (A)
                                 InkWell(
                                   onTap: () {
                                     FirebaseFirestore.instance.collection('admins').doc(widget.aId).collection('attendance').doc('$dStr-$r').set({
@@ -308,7 +381,6 @@ class _AttScreenState extends State<AttScreen> {
                                     child: Center(child: Text('A', style: TextStyle(fontWeight: FontWeight.bold, color: isA ? Colors.white : Colors.black87))),
                                   ),
                                 ),
-                                // Face Scan Option
                                 IconButton(
                                   icon: const Icon(Icons.camera_alt, color: Color(0xFF07192C), size: 22),
                                   onPressed: () async {
@@ -398,7 +470,7 @@ class _EnrollScreenState extends State<EnrollScreen> {
             const SizedBox(height: 10),
             TextField(controller: _p, keyboardType: TextInputType.phone, decoration: const InputDecoration(labelText: 'अभिभावक का मोबाइल नंबर (SMS हेतु)', border: OutlineInputBorder(), isDense: true)),
             const SizedBox(height: 10),
-          TextField(controller: _ad, decoration: const InputDecoration(labelText: 'स्थानीय पता', border: OutlineInputBorder(), isDense: true)),
+            TextField(controller: _ad, decoration: const InputDecoration(labelText: 'स्थानीय पता', border: OutlineInputBorder(), isDense: true)),
             const SizedBox(height: 16),
             ElevatedButton(
               style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF07192C), foregroundColor: const Color(0xFFFFD700), minimumSize: const Size.fromHeight(45)),
