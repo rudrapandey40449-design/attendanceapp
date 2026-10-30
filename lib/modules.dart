@@ -83,21 +83,23 @@ class FeeMod extends StatelessWidget {
                   return Card(
                     child: ListTile(
                       title: Text(sName, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-                      subtitle: Text('अनुक्रमांक: $r | स्थिति: ${isP ? "जमा" : "बकाया"}', style: TextStyle(color: isP ? Colors.green.shade700 : Colors.red, fontSize: 11)),
+                      subtitle: Text('अनुक्रमांक: $r | स्थिति: ${isP ? "जमा ✔ (Receipt Sent)" : "बकाया ✖"}', style: TextStyle(color: isP ? Colors.green.shade700 : Colors.red, fontSize: 11)),
                       trailing: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           if (isP) IconButton(icon: const Icon(Icons.print, color: Color(0xFF0D253F), size: 20), onPressed: () => _showReceipt(context, sName, r, m, pDate)),
-                          if (isP && phone.isNotEmpty)
-                            IconButton(
-                              icon: const Icon(Icons.sms, color: Colors.green, size: 20),
-                              onPressed: () => sendGovCloudSMS(context, phone, 'राजकीय कोचिंग ($org): प्रिय अभिभावक, शिक्षार्थी $sName (अनुक्रमांक: $r) का माह $m का शुल्क प्राप्त हुआ। रसीद सं: REC-$r। संपर्क: 7393899011'),
-                            ),
                           ElevatedButton(
                             style: ElevatedButton.styleFrom(backgroundColor: isP ? Colors.green.shade700 : Colors.red, foregroundColor: Colors.white),
                             onPressed: () {
                               final dt = DateFormat('dd-MM-yyyy hh:mm a').format(DateTime.now());
-                              FirebaseFirestore.instance.collection('admins').doc(aId).collection('fees').doc('$m-$r').set({'month': m, 'roll': r, 'isPaid': !isP, 'paidOn': !isP ? dt : null});
+                              final newStatus = !isP;
+                              FirebaseFirestore.instance.collection('admins').doc(aId).collection('fees').doc('$m-$r').set({
+                                'month': m, 'roll': r, 'isPaid': newStatus, 'paidOn': newStatus ? dt : null
+                              });
+                              // Paid होते ही ऑटो-SMS
+                              if (newStatus && phone.isNotEmpty) {
+                                sendGovCloudSMS(context, phone, 'राजकीय कोचिंग ($org): प्रिय अभिभावक, शिक्षार्थी $sName (अनुक्रमांक: $r) का माह $m का मासिक शुल्क प्राप्त हुआ। रसीद सं: REC-$r। संपर्क सूत्र: 7393899011');
+                              }
                             },
                             child: Text(isP ? 'Paid ✔' : 'Due ✖', style: const TextStyle(fontSize: 11)),
                           ),
