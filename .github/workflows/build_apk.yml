@@ -27,7 +27,11 @@ jobs:
 
       - name: Create Clean Android Structure
         run: |
+          mkdir -p /tmp/backup
+          cp -r lib /tmp/backup/ || true
           flutter create --platforms=android --project-name=smart_attendance .
+          rm -rf lib
+          cp -r /tmp/backup/lib .
           echo "android.useAndroidX=true" >> android/gradle.properties
           echo "android.enableJetifier=true" >> android/gradle.properties
           echo "org.gradle.jvmargs=-Xmx4096M" >> android/gradle.properties
