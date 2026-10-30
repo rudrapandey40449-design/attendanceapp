@@ -3,12 +3,9 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:http/http.dart' as http;
 
-// 100% बैकग्राउंड ऑटोमैटिक क्लाउड SMS (बिना किसी स्क्रीन पॉप-अप के)
 Future<void> sendGovCloudSMS(BuildContext context, String phone, String msg) async {
   if (phone.isEmpty) return;
   final cleanPhone = phone.replaceAll(RegExp(r'[^0-9]'), '');
-  
-  // Fast2SMS API Key (अपने Fast2SMS पैनल से Dev API Key डालें)
   const String fast2smsApiKey = 'YOUR_FAST2SMS_API_KEY';
 
   try {
@@ -43,27 +40,44 @@ class GovHeader extends StatelessWidget {
     return Column(
       children: [
         Container(
-          color: const Color(0xFF0D253F),
-          padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+          color: const Color(0xFF07192C),
+          padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 14),
           child: Row(
             children: [
               Container(
-                width: 36,
-                height: 36,
+                width: 44,
+                height: 44,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  border: Border.all(color: Colors.amber, width: 2),
-                  gradient: const RadialGradient(colors: [Color(0xFF2A4D69), Color(0xFF0D253F)]),
+                  border: Border.all(color: const Color(0xFFFFD700), width: 2.2),
+                  boxShadow: const [
+                    BoxShadow(color: Colors.amberAccent, blurRadius: 4, spreadRadius: 0.5)
+                  ],
+                  gradient: const RadialGradient(
+                    colors: [Color(0xFF2A5298), Color(0xFF07192C)],
+                  ),
                 ),
-                child: const Center(child: Icon(Icons.shield, color: Colors.amber, size: 20)),
+                child: const Center(
+                  child: Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      Icon(Icons.workspace_premium, color: Color(0xFFFFD700), size: 28),
+                      Icon(Icons.account_balance, color: Colors.white, size: 14),
+                    ],
+                  ),
+                ),
               ),
-              const SizedBox(width: 10),
+              const SizedBox(width: 12),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text('राष्ट्रीय प्रशिक्षण एवं कोचिंग प्रबंधन प्रणाली', style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold)),
-                    Text(title, style: const TextStyle(color: Colors.white70, fontSize: 10)),
+                    const Text(
+                      'राष्ट्रीय प्रशिक्षण एवं कोचिंग प्रबंधन प्रणाली',
+                      style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 0.2),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(title, style: const TextStyle(color: Color(0xFFFFD700), fontSize: 10, fontWeight: FontWeight.w600)),
                   ],
                 ),
               ),
@@ -72,9 +86,9 @@ class GovHeader extends StatelessWidget {
         ),
         Row(
           children: [
-            Expanded(child: Container(height: 3, color: Colors.orange)),
-            Expanded(child: Container(height: 3, color: Colors.white)),
-            Expanded(child: Container(height: 3, color: Colors.green)),
+            Expanded(child: Container(height: 3.5, color: const Color(0xFFFF9933))),
+            Expanded(child: Container(height: 3.5, color: Colors.white)),
+            Expanded(child: Container(height: 3.5, color: const Color(0xFF138808))),
           ],
         ),
       ],
@@ -85,9 +99,9 @@ class GovHeader extends StatelessWidget {
 class UIDAIOverlayPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
-    final paintBg = Paint()..color = Colors.black.withOpacity(0.72);
+    final paintBg = Paint()..color = Colors.black.withOpacity(0.75);
     final center = Offset(size.width / 2, size.height * 0.42);
-    const double radius = 110.0;
+    const double radius = 115.0;
     final path = Path()
       ..addRect(Rect.fromLTWH(0, 0, size.width, size.height))
       ..addOval(Rect.fromCircle(center: center, radius: radius))
