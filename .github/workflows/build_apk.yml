@@ -35,9 +35,10 @@ jobs:
           echo "android.useAndroidX=true" >> android/gradle.properties
           echo "android.enableJetifier=true" >> android/gradle.properties
           echo "org.gradle.jvmargs=-Xmx4096M" >> android/gradle.properties
+          sed -i 's/compileSdkVersion .*/compileSdkVersion 35/' android/app/build.gradle || true
+          sed -i 's/compileSdk = .*/compileSdk = 35/' android/app/build.gradle || true
           sed -i 's/minSdkVersion .*/minSdkVersion 21/' android/app/build.gradle || true
           sed -i 's/minSdkVersion = .*/minSdkVersion = 21/' android/app/build.gradle || true
-          sed -i 's/minSdkVersion = .*/minSdkVersion = 21/' /opt/hostedtoolcache/flutter/*/x64/packages/flutter_tools/gradle/src/main/groovy/flutter.groovy || true
 
       - name: Get Dependencies
         run: flutter pub get
