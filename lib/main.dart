@@ -620,10 +620,14 @@ class _SearchModState extends State<SearchMod> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-appBar: AppBar(title: const Text('शिक्षार्थी डोजियर'), backgroundColor: const Color(0xFF0D253F), foregroundColor: Color
-              
+        return Scaffold(
+      appBar: AppBar(
+        title: const Text('शिक्षार्थी डोजियर'),
+        backgroundColor: const Color(0xFF0D253F),
+        foregroundColor: Colors.white,
+      ),
       body: Padding(
+        
         padding: const EdgeInsets.all(12),
         child: Column(
           children: [
