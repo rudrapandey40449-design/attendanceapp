@@ -3,6 +3,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
 import 'widgets.dart';
+import 'modules.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -270,5 +271,74 @@ class _AttModState extends State<AttMod> {
                   stream: FirebaseFirestore.instance.collection('admins').doc(widget.aId).collection('attendance').where('date', isEqualTo: _dKey).snapshots(),
                   builder: (ctx, s2) {
                     if (s2.hasData) {
-                      for (
-                        
+                      for (var d in s2.data!.docs) {
+                        final r = d['roll'].toString();
+                        _st.putIfAbsent(r, () => d['status'] == 'Present');
+                        _face.putIfAbsent(r, () => (d.data() as Map<String, dynamic>)['face'] == true);
+                      }
+                    }
+                    return ListView.builder(
+                      itemCount: stds.length,
+                      itemBuilder: (c, i) {
+                        final r = stds[i]['roll'].toString();
+                        final isV = _face[r] ?? false;
+                        final isP = _st[r] ?? false;
+                        final phone = (stds[i].data() as Map<String, dynamic>)['phone'] ?? '';
+                        final sName = stds[i]['name'] ?? '';
+                        return Card(
+                          margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                          child: ListTile(
+                            title: Text('$sName (अनुक्रमांक: $r)', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                            subtitle: Text(isP ? (isV ? 'UIDAI बायोमेट्रिक प्रमाणित ✔' : 'उपस्थित ✔') : 'अनुपस्थित ✖', style: TextStyle(color: isP ? Colors.green.shade700 : Colors.red, fontSize: 11)),
+                            trailing: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                ElevatedButton(
+                                  style: ElevatedButton.styleFrom(backgroundColor: isP ? Colors.green.shade700 : Colors.grey.shade400, foregroundColor: Colors.white, minimumSize: const Size(36, 30)),
+                                  onPressed: () => setState(() => _st[r] = !(isP)),
+                                  child: Text(isP ? 'P' : 'A', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                                ),
+                                const SizedBox(width: 4),
+                                ElevatedButton.icon(
+                                  style: ElevatedButton.styleFrom(backgroundColor: isV ? Colors.green.shade700 : const Color(0xFF0D253F), foregroundColor: Colors.white, minimumSize: const Size(54, 30)),
+                                  icon: const Icon(Icons.face, size: 14),
+                                  label: Text(isV ? 'प्रमाणित' : 'सत्यापन', style: const TextStyle(fontSize: 10)),
+                                  onPressed: () => _scanUIDAI(r, sName),
+                                ),
+                                if (!isP && phone.isNotEmpty)
+                                  IconButton(
+                                    icon: const Icon(Icons.sms, color: Colors.red, size: 20),
+                                    onPressed: () => sendGovCloudSMS(context, phone, 'राजकीय कोचिंग (${widget.org}): प्रिय अभिभावक, आपका पाल्य $sName (अनुक्रमांक: $r) आज दिनांक $_dKey को कक्षा से अनुपस्थित है। संस्थान संपर्क: 7393899011'),
+                                  ),
+                              ],
+                            ),
+                          ),
+                        );
+                      },
+                    );
+                  },
+                );
+              },
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(10),
+            child: ElevatedButton(
+              style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF0D253F), foregroundColor: Colors.white, minimumSize: const Size.fromHeight(42)),
+              onPressed: () async {
+                final b = FirebaseFirestore.instance.batch();
+                _st.forEach((r, p) {
+                  final ref = FirebaseFirestore.instance.collection('admins').doc(widget.aId).collection('attendance').doc('$_dKey-$r');
+                  b.set(ref, {'date': _dKey, 'roll': r, 'status': p ? 'Present' : 'Absent', 'face': _face[r] ?? false, 'timestamp': FieldValue.serverTimestamp()});
+                });
+                await b.commit();
+                if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('उपस्थिति पंजिका लॉक हो गई!')));
+              },
+              child: Text('$_dKey का दैनिक हाजिरी डेटा लॉक करें'),
+            ),
+          )
+        ],
+      ),
+    );
+  }
+}
