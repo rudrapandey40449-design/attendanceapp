@@ -18,7 +18,8 @@ class GovAttendanceApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      title: 'स्मार्ट उपस्थिति पोर्टल',
+      title: 'राष्ट्रीय कोचिंग पोर्टल',
+
       theme: ThemeData(
         primaryColor: const Color(0xFF07192C),
         scaffoldBackgroundColor: const Color(0xFFF1F5F9),
