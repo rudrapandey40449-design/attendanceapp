@@ -46,7 +46,20 @@ class _FirebaseInitWrapperState extends State<FirebaseInitWrapper> {
 
   Future<void> _startFirebase() async {
     try {
-      await Firebase.initializeApp();
+      if (Firebase.apps.isEmpty) {
+        try {
+          await Firebase.initializeApp();
+        } catch (_) {
+          await Firebase.initializeApp(
+            options: const FirebaseOptions(
+              apiKey: "AIzaSyDummyKeyForAttendancePortal2026",
+              appId: "1:1029384756:android:abcd1234efgh5678",
+              messagingSenderId: "1029384756",
+              projectId: "attendanceapp-portal",
+            ),
+          );
+        }
+      }
       if (mounted) setState(() => _initialized = true);
     } catch (e) {
       if (mounted) setState(() => _error = e.toString());
@@ -94,7 +107,7 @@ class _FirebaseInitWrapperState extends State<FirebaseInitWrapper> {
             children: [
               CircularProgressIndicator(color: Color(0xFFFFD700)),
               SizedBox(height: 16),
-              Text('पोर्टल लोड हो रहा है...', style: TextStyle(color: Colors.white, fontSize: 13)),
+              Text('राष्ट्रीय कोचिंग पोर्टल लोड हो रहा है...', style: TextStyle(color: Colors.white, fontSize: 13, letterSpacing: 0.5)),
             ],
           ),
         ),
@@ -104,7 +117,6 @@ class _FirebaseInitWrapperState extends State<FirebaseInitWrapper> {
     return const AuthScreen();
   }
 }
-
 class AuthScreen extends StatefulWidget {
   const AuthScreen({super.key});
 
@@ -255,7 +267,6 @@ class Dashboard extends StatelessWidget {
     );
   }
 }
-
 class AttScreen extends StatefulWidget {
   final String aId, org;
   const AttScreen({super.key, required this.aId, required this.org});
