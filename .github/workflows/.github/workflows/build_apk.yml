@@ -27,13 +27,19 @@ jobs:
 
       - name: Create Clean Android Structure
         run: |
-          flutter create --platforms=android --project-name=smart_attendance .
+          mkdir -p /tmp/backup
+          cp -r lib /tmp/backup/ || true
+          flutter create --platforms=android .
+          rm -rf lib
+          cp -r /tmp/backup/lib .
+          sed -i 's/<manifest xmlns:android="http:\/\/schemas.android.com\/apk\/res\/android">/<manifest xmlns:android="http:\/\/schemas.android.com\/apk\/res\/android">\n    <uses-permission android:name="android.permission.INTERNET"\/>\n    <uses-permission android:name="android.permission.CAMERA"\/>/' android/app/src/main/AndroidManifest.xml
           echo "android.useAndroidX=true" >> android/gradle.properties
           echo "android.enableJetifier=true" >> android/gradle.properties
-          echo "org.gradle.jvmargs=-Xmx4096M" >> android/gradle.properties
-          sed -i 's/minSdkVersion .*/minSdkVersion 21/' android/app/build.gradle || true
-          sed -i 's/minSdkVersion = .*/minSdkVersion = 21/' android/app/build.gradle || true
-          sed -i 's/minSdkVersion = .*/minSdkVersion = 21/' /opt/hostedtoolcache/flutter/*/x64/packages/flutter_tools/gradle/src/main/groovy/flutter.groovy || true
+          echo "org.gradle.jvmargs=-Xmx4096m" >> android/gradle.properties
+          sed -i 's/compileSdkVersion .*/compileSdkVersion 34/' android/app/build.gradle
+          sed -i 's/compileSdk = .*/compileSdk = 34/' android/app/build.gradle
+          sed -i 's/minSdkVersion .*/minSdkVersion 21/' android/app/build.gradle
+          sed -i 's/minSdkVersion = .*/minSdkVersion 21/' android/app/build.gradle
 
       - name: Get Dependencies
         run: flutter pub get
