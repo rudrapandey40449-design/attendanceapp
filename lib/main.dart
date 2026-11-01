@@ -125,6 +125,7 @@ class _AuthScreenState extends State<AuthScreen> {
     );
   }
 }
+
 class Dashboard extends StatelessWidget {
   final String aId, org;
   const Dashboard({super.key, required this.aId, required this.org});
@@ -170,7 +171,6 @@ class Dashboard extends StatelessWidget {
       ),
     );
   }
-
   Widget _menuCard(BuildContext ctx, String t, IconData ic, VoidCallback tap) {
     return Card(
       elevation: 2,
@@ -185,6 +185,7 @@ class Dashboard extends StatelessWidget {
     );
   }
 }
+
 class AttScreen extends StatefulWidget {
   final String aId, org;
   const AttScreen({super.key, required this.aId, required this.org});
@@ -378,7 +379,6 @@ class _AttScreenState extends State<AttScreen> {
     );
   }
 }
-
 class EnrollScreen extends StatefulWidget {
   final String aId;
   const EnrollScreen({super.key, required this.aId});
