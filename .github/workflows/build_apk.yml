@@ -29,16 +29,30 @@ jobs:
         run: |
           mkdir -p /tmp/backup
           cp -r lib /tmp/backup/ || true
-          flutter create --platforms=android --project-name=smart_attendance .
+          flutter create --platforms=android .
           rm -rf lib
           cp -r /tmp/backup/lib .
+          python3 -c '
+          path = "android/app/src/main/AndroidManifest.xml"
+          with open(path, "r") as f:
+              content = f.read()
+          perms = """
+              <uses-permission android:name="android.permission.INTERNET" />
+              <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+              <uses-permission android:name="android.permission.CAMERA" />
+          """
+          if "android.permission.INTERNET" not in content:
+              content = content.replace(">", ">" + perms, 1)
+          with open(path, "w") as f:
+              f.write(content)
+          '
           echo "android.useAndroidX=true" >> android/gradle.properties
           echo "android.enableJetifier=true" >> android/gradle.properties
-          echo "org.gradle.jvmargs=-Xmx4096M" >> android/gradle.properties
-          sed -i 's/compileSdkVersion .*/compileSdkVersion 35/' android/app/build.gradle || true
-          sed -i 's/compileSdk = .*/compileSdk = 35/' android/app/build.gradle || true
-          sed -i 's/minSdkVersion .*/minSdkVersion 21/' android/app/build.gradle || true
-          sed -i 's/minSdkVersion = .*/minSdkVersion = 21/' android/app/build.gradle || true
+          echo "org.gradle.jvmargs=-Xmx4096m" >> android/gradle.properties
+          sed -i 's/compileSdkVersion .*/compileSdkVersion 34/' android/app/build.gradle
+          sed -i 's/compileSdk = .*/compileSdk = 34/' android/app/build.gradle
+          sed -i 's/minSdkVersion .*/minSdkVersion 21/' android/app/build.gradle
+          sed -i 's/minSdkVersion = .*/minSdkVersion 21/' android/app/build.gradle
 
       - name: Get Dependencies
         run: flutter pub get
