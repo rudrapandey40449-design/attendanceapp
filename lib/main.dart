@@ -180,7 +180,8 @@ class Dashboard extends StatelessWidget {
                 _tile(context, 'दैनिक बायोमेट्रिक उपस्थिति (Live Auto-SMS)', Icons.fingerprint, const AttScreen()),
                 _tile(context, 'राजस्व एवं शुल्क संधारण (Fee Ledger)', Icons.receipt_long, const FeeScreen()),
                 _tile(context, 'शैक्षणिक मूल्यांकन एवं टेस्ट परिणाम', Icons.assignment_turned_in, const TestScreen()),
-                _tile(context, 'नवीन शिक्षार्थी नामांकन (Student Register)', const EnrollScreen()),
+                _tile(context, 'नवीन शिक्षार्थी नामांकन (Student Register)', Icons.person_add, const EnrollScreen()),
+                
               ],
             ),
           ),
