@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:http/http.dart' as http;
+import 'package:url_launcher/url_launcher.dart';
 
 String globalOrg = 'राष्ट्रीय कोचिंग केंद्र';
 String globalAid = 'admin';
@@ -13,40 +13,27 @@ void main() {
   runApp(const GovAttendanceApp());
 }
 
-Future sendFastSMS(BuildContext ctx, String phone, String msg) async {
+// 100% मुफ़्त WhatsApp अलर्ट इंजन
+Future sendWhatsAppMsg(BuildContext ctx, String phone, String msg) async {
   if (phone.isEmpty) {
     ScaffoldMessenger.of(ctx).showSnackBar(const SnackBar(content: Text('मोबाइल नंबर खाली है!')));
     return;
   }
-  final cleanNum = phone.replaceAll(RegExp(r'[^0-9]'), '');
-  const apiKey = 'TcMuHytKcrz7j8bbmvjdb6tIPG6ofRl0bM5y9c6LowxLrkSqTnGP0vlSteARud6dHjRMg9AGY8eUW5Ne';
+  var cleanNum = phone.replaceAll(RegExp(r'[^0-9]'), '');
+  if (cleanNum.length == 10) {
+    cleanNum = '91$cleanNum';
+  }
   
+  final url = Uri.parse('https://wa.me/$cleanNum?text=${Uri.encodeComponent(msg)}');
   try {
-    final res = await http.post(
-      Uri.parse('https://www.fast2sms.com/dev/bulkV2'),
-      headers: {
-        'authorization': apiKey,
-        'Content-Type': 'application/json',
-      },
-      body: jsonEncode({
-        'route': 'q',
-        'message': msg,
-        'language': 'unicode',
-        'numbers': cleanNum,
-      }),
-    );
-    final d = jsonDecode(res.body);
-    if (ctx.mounted) {
-      if (d['return'] == true) {
-        ScaffoldMessenger.of(ctx).showSnackBar(const SnackBar(backgroundColor: Colors.green, content: Text('अभिभावक को SMS सफलतापूर्वक भेजा गया ✔')));
-      } else {
-        final errMsg = d['message'] is List ? (d['message'] as List).join(', ') : d['message'].toString();
-        ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(backgroundColor: Colors.red, content: Text('SMS विफल: $errMsg')));
-      }
+    if (await canLaunchUrl(url)) {
+      await launchUrl(url, mode: LaunchMode.externalApplication);
+    } else {
+      await launchUrl(url, mode: LaunchMode.platformDefault);
     }
   } catch (e) {
     if (ctx.mounted) {
-      ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(backgroundColor: Colors.red, content: Text('इंटरनेट त्रुटि: $e')));
+      ScaffoldMessenger.of(ctx).showSnackBar(const SnackBar(backgroundColor: Colors.red, content: Text('WhatsApp खोलने में विफल!')));
     }
   }
 }
@@ -188,7 +175,7 @@ class Dashboard extends StatelessWidget {
             child: ListView(
               padding: const EdgeInsets.all(12),
               children: [
-                _tile(context, 'दैनिक बायोमेट्रिक उपस्थिति (Live Auto-SMS)', Icons.fingerprint, const AttScreen()),
+                _tile(context, 'दैनिक उपस्थिति एवं WhatsApp अलर्ट', Icons.fingerprint, const AttScreen()),
                 _tile(context, 'राजस्व एवं शुल्क संधारण (Fee Ledger)', Icons.receipt_long, const FeeScreen()),
                 _tile(context, 'शैक्षणिक मूल्यांकन एवं टेस्ट परिणाम', Icons.assignment_turned_in, const TestScreen()),
                 _tile(context, 'नवीन शिक्षार्थी नामांकन (Student Register)', Icons.person_add, const EnrollScreen()),
@@ -242,7 +229,7 @@ class _EnrollState extends State {
 
     await pref.setStringList(key, list.map((e) => jsonEncode(e)).toList());
     if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(backgroundColor: Colors.green, content: Text('शिक्षार्थी स्थायी रूप से सुरक्षित हुआ ✔')));
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(backgroundColor: Colors.green, content: Text('शिक्षार्थी सुरक्षित हुआ ✔')));
       Navigator.pop(context);
     }
   }
@@ -263,7 +250,7 @@ class _EnrollState extends State {
             const SizedBox(height: 10),
             TextField(controller: _f, decoration: const InputDecoration(labelText: 'पिता का नाम', border: OutlineInputBorder(), isDense: true)),
             const SizedBox(height: 10),
-            TextField(controller: _p, keyboardType: TextInputType.phone, decoration: const InputDecoration(labelText: 'मोबाइल नंबर (SMS हेतु)', border: OutlineInputBorder(), isDense: true)),
+            TextField(controller: _p, keyboardType: TextInputType.phone, decoration: const InputDecoration(labelText: 'मोबाइल नंबर (WhatsApp हेतु)', border: OutlineInputBorder(), isDense: true)),
             const SizedBox(height: 10),
             TextField(controller: _ad, decoration: const InputDecoration(labelText: 'पता', border: OutlineInputBorder(), isDense: true)),
             const SizedBox(height: 16),
@@ -307,17 +294,18 @@ class _AttState extends State {
   }
 
   void _mark(String r, String name, String phone, String st) async {
-    final dStr = DateFormat('yyyy-MM-dd').format(_date);
+    final dStr = DateFormat('dd-MM-yyyy').format(_date);
     setState(() => status[r] = st);
     
     final pref = await SharedPreferences.getInstance();
-    await pref.setString('permanent_att_$dStr', jsonEncode(status));
+    final saveKey = DateFormat('yyyy-MM-dd').format(_date);
+    await pref.setString('permanent_att_$saveKey', jsonEncode(status));
 
     if (phone.isNotEmpty) {
       final msg = st == 'Present'
-          ? 'प्रिय अभिभावक, शिक्षार्थी $name (रोल: $r) आज दिनांक $dStr को संस्थान ($globalOrg) में उपस्थित है।'
-          : 'प्रिय अभिभावक, शिक्षार्थी $name (रोल: $r) आज दिनांक $dStr को संस्थान ($globalOrg) से अनुपस्थित है। संज्ञान लें।';
-      sendFastSMS(context, phone, msg);
+          ? '📢 *दैनिक उपस्थिति सूचना*\n\nप्रिय अभिभावक, शिक्षार्थी *${name}* (रोल नं: ${r}) आज दिनांक *${dStr}* को संस्थान *${globalOrg}* में ससमय उपस्थित है। धन्यवाद!'
+          : '⚠️ *दैनिक उपस्थिति सूचना*\n\nप्रिय अभिभावक, शिक्षार्थी *${name}* (रोल नं: ${r}) आज दिनांक *${dStr}* को संस्थान *${globalOrg}* से अनुपस्थित (Absent) है। कृपया संज्ञान लें।';
+      sendWhatsAppMsg(context, phone, msg);
     }
   }
 
@@ -326,7 +314,7 @@ class _AttState extends State {
     final photo = await picker.pickImage(source: ImageSource.camera, preferredCameraDevice: CameraDevice.front);
     if (photo != null) {
       _mark(r, name, phone, 'Present');
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(backgroundColor: Colors.green, content: Text('$name का लाइव चेहरा सत्यापित हुआ ✔')));
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(backgroundColor: Colors.green, content: Text('$name का चेहरा सत्यापित हुआ ✔')));
     }
   }
 
@@ -359,12 +347,12 @@ class _AttState extends State {
                       children: [
                         InkWell(
                           onTap: () => _mark(r, name, phone, 'Present'),
-                          child: Container(padding: const EdgeInsets.all(7), decoration: BoxDecoration(color: isP ? Colors.green : Colors.grey.shade200, borderRadius: BorderRadius.circular(6)), child: Text('P', style: TextStyle(fontWeight: FontWeight.bold, color: isP ? Colors.white : Colors.black))),
+                          child: Container(padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7), decoration: BoxDecoration(color: isP ? Colors.green : Colors.grey.shade200, borderRadius: BorderRadius.circular(6)), child: Text('P', style: TextStyle(fontWeight: FontWeight.bold, color: isP ? Colors.white : Colors.black))),
                         ),
                         const SizedBox(width: 4),
                         InkWell(
                           onTap: () => _mark(r, name, phone, 'Absent'),
-                          child: Container(padding: const EdgeInsets.all(7), decoration: BoxDecoration(color: isA ? Colors.red : Colors.grey.shade200, borderRadius: BorderRadius.circular(6)), child: Text('A', style: TextStyle(fontWeight: FontWeight.bold, color: isA ? Colors.white : Colors.black))),
+                          child: Container(padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7), decoration: BoxDecoration(color: isA ? Colors.red : Colors.grey.shade200, borderRadius: BorderRadius.circular(6)), child: Text('A', style: TextStyle(fontWeight: FontWeight.bold, color: isA ? Colors.white : Colors.black))),
                         ),
                         IconButton(icon: const Icon(Icons.camera_alt, color: Color(0xFF07192C)), onPressed: () => _faceVerify(r, name, phone)),
                       ],
@@ -414,7 +402,8 @@ class _FeeState extends State {
     await pref.setString('permanent_fees_$m', jsonEncode(fees));
 
     if (newStatus && phone.isNotEmpty) {
-      sendFastSMS(context, phone, 'राजकीय कोचिंग ($globalOrg): शिक्षार्थी $name (रोल: $r) का माह $m का मासिक शुल्क प्राप्त हुआ। रसीद सं: REC-$r।');
+      final msg = '🧾 *शुल्क प्राप्ति रसीद*\n\nप्रिय अभिभावक, शिक्षार्थी *${name}* (रोल नं: ${r}) का माह *${m}* का मासिक शिक्षण शुल्क प्राप्त हो गया है।\nरसीद संख्या: REC-${r}-${DateTime.now().millisecond}\nसंस्थान: *${globalOrg}* ✔';
+      sendWhatsAppMsg(context, phone, msg);
     }
   }
 
@@ -486,7 +475,8 @@ class _TestState extends State {
     final pref = await SharedPreferences.getInstance();
     await pref.setString('permanent_test_$r', m);
 
-    sendFastSMS(context, phone, 'प्रिय अभिभावक, शिक्षार्थी $name (रोल: $r) का मासिक टेस्ट परिणाम: प्राप्तांक $m/50।');
+    final msg = '📊 *मासिक टेस्ट परिणाम*\n\nप्रिय अभिभावक, शिक्षार्थी *${name}* (रोल नं: ${r}) का नवीनतम टेस्ट परिणाम:\nप्राप्तांक: *${m}/50*\nसंस्थान: *${globalOrg}*';
+    sendWhatsAppMsg(context, phone, msg);
   }
 
   @override
@@ -525,10 +515,11 @@ class _TestState extends State {
                           ),
                         ),
                         const SizedBox(width: 6),
-                        ElevatedButton(
-                          style: ElevatedButton.styleFrom(backgroundColor: Colors.green, foregroundColor: Colors.white),
+                        ElevatedButton.icon(
+                          style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF25D366), foregroundColor: Colors.white, padding: const EdgeInsets.symmetric(horizontal: 8)),
+                          icon: const Icon(Icons.send, size: 14),
+                          label: const Text('WA', style: TextStyle(fontWeight: FontWeight.bold)),
                           onPressed: () => _saveAndSend(r, name, phone),
-                          child: const Text('SMS'),
                         ),
                       ],
                     ),
