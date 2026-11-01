@@ -12,7 +12,7 @@ void main() {
   ));
 }
 
-Future<void> sendSMS(BuildContext ctx, String phone, String msg) async {
+Future sendSMS(BuildContext ctx, String phone, String msg) async {
   if (phone.isEmpty) return;
   final num = phone.replaceAll(RegExp(r'[^0-9]'), '');
   const key = 'TcMuHytKcrz7j8bbmvjdb6tIPG6ofRl0bM5y9c6LowxLrkSqTnGP0vlSteARud6dHjRMg9AGY8eUW5Ne';
@@ -24,7 +24,7 @@ Future<void> sendSMS(BuildContext ctx, String phone, String msg) async {
     );
     final d = jsonDecode(res.body);
     if (ctx.mounted && d['return'] == true) {
-      ScaffoldMessenger.of(ctx).showSnackBar(const SnackBar(content: Text('SMS सफलतापूर्वक भेजा गया ✔'), duration: Duration(seconds: 1)));
+      ScaffoldMessenger.of(ctx).showSnackBar(const SnackBar(content: Text('SMS भेजा गया ✔'), duration: Duration(seconds: 1)));
     }
   } catch (_) {}
 }
@@ -32,7 +32,7 @@ Future<void> sendSMS(BuildContext ctx, String phone, String msg) async {
 class AuthScreen extends StatefulWidget {
   const AuthScreen({super.key});
   @override
-  State<AuthScreen> createState() => _AuthState();
+  State createState() => _AuthState();
 }
 
 class _AuthState extends State<AuthScreen> {
@@ -105,7 +105,7 @@ class HomeScreen extends StatelessWidget {
 class AddStudentScreen extends StatefulWidget {
   const AddStudentScreen({super.key});
   @override
-  State<AddStudentScreen> createState() => _AddStudentState();
+  State createState() => _AddStudentState();
 }
 
 class _AddStudentState extends State<AddStudentScreen> {
@@ -121,7 +121,7 @@ class _AddStudentState extends State<AddStudentScreen> {
 
     final pref = await SharedPreferences.getInstance();
     final raw = pref.getStringList('students_list') ?? [];
-    final list = raw.map((e) => jsonDecode(e) as Map<String, dynamic>).toList();
+    var list = raw.map((e) => jsonDecode(e)).toList();
 
     list.removeWhere((e) => e['roll'].toString() == roll);
     list.add({'name': name, 'roll': roll, 'phone': phone});
@@ -145,7 +145,7 @@ class _AddStudentState extends State<AddStudentScreen> {
             const SizedBox(height: 10),
             TextField(controller: _r, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'अनुक्रमांक (Roll No)', border: OutlineInputBorder())),
             const SizedBox(height: 10),
-            TextField(controller: _p, keyboardType: TextInputType.phone, decoration: const InputDecoration(labelText: 'अभिभावक मोबाइल नंबर (SMS हेतु)', border: OutlineInputBorder())),
+            TextField(controller: _p, keyboardType: TextInputType.phone, decoration: const InputDecoration(labelText: 'मोबाइल नंबर (SMS हेतु)', border: OutlineInputBorder())),
             const SizedBox(height: 16),
             ElevatedButton(
               style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF07192C), foregroundColor: const Color(0xFFFFD700), minimumSize: const Size.fromHeight(45)),
@@ -161,12 +161,12 @@ class _AddStudentState extends State<AddStudentScreen> {
 class AttScreen extends StatefulWidget {
   const AttScreen({super.key});
   @override
-  State<AttScreen> createState() => _AttState();
+  State createState() => _AttState();
 }
 
 class _AttState extends State<AttScreen> {
-  List> _stds = [];
-  final Map<String, String> _status = {};
+  var stds = [];
+  var status = {};
 
   @override
   void initState() {
@@ -177,11 +177,15 @@ class _AttState extends State<AttScreen> {
   void _load() async {
     final pref = await SharedPreferences.getInstance();
     final raw = pref.getStringList('students_list') ?? [];
-    setState(() => _stds = raw.map((e) => jsonDecode(e) as Map<String, dynamic>).toList());
+    setState(() {
+      stds = raw.map((e) => jsonDecode(e)).toList();
+    });
   }
 
   void _mark(String r, String name, String phone, String st) {
-    setState(() => _status[r] = st);
+    setState(() {
+      status[r] = st;
+    });
     final dt = DateFormat('dd-MM-yyyy').format(DateTime.now());
     if (phone.isNotEmpty) {
       sendSMS(context, phone, 'प्रिय अभिभावक, शिक्षार्थी $name (रोल: $r) आज दिनांक $dt को कोचिंग में ${st == "P" ? "उपस्थित" : "अनुपस्थित"} है।');
@@ -192,16 +196,16 @@ class _AttState extends State<AttScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('दैनिक उपस्थिति'), backgroundColor: const Color(0xFF07192C), foregroundColor: Colors.white),
-      body: _stds.isEmpty
+      body: stds.isEmpty
           ? const Center(child: Text('कोई छात्र नहीं है। पहले नामांकन करें।'))
           : ListView.builder(
               padding: const EdgeInsets.all(8),
-              itemCount: _stds.length,
+              itemCount: stds.length,
               itemBuilder: (ctx, i) {
-                final r = _stds[i]['roll'].toString();
-                final name = _stds[i]['name'] ?? '';
-                final phone = _stds[i]['phone'] ?? '';
-                final cur = _status[r] ?? '';
+                final r = stds[i]['roll'].toString();
+                final name = stds[i]['name'] ?? '';
+                final phone = stds[i]['phone'] ?? '';
+                final cur = status[r] ?? '';
 
                 return Card(
                   child: ListTile(
@@ -211,14 +215,8 @@ class _AttState extends State<AttScreen> {
                     trailing: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        IconButton(
-                          icon: const Icon(Icons.check_circle, color: Colors.green),
-                          onPressed: () => _mark(r, name, phone, 'P'),
-                        ),
-                        IconButton(
-                          icon: const Icon(Icons.cancel, color: Colors.red),
-                          onPressed: () => _mark(r, name, phone, 'A'),
-                        ),
+                        IconButton(icon: const Icon(Icons.check_circle, color: Colors.green), onPressed: () => _mark(r, name, phone, 'P')),
+                        IconButton(icon: const Icon(Icons.cancel, color: Colors.red), onPressed: () => _mark(r, name, phone, 'A')),
                       ],
                     ),
                   ),
@@ -232,12 +230,12 @@ class _AttState extends State<AttScreen> {
 class FeeScreen extends StatefulWidget {
   const FeeScreen({super.key});
   @override
-  State<FeeScreen> createState() => _FeeState();
+  State createState() => _FeeState();
 }
 
 class _FeeState extends State<FeeScreen> {
-  List> _stds = [];
-  final Map<String, bool> _paid = {};
+  var stds = [];
+  var paid = {};
 
   @override
   void initState() {
@@ -248,14 +246,18 @@ class _FeeState extends State<FeeScreen> {
   void _load() async {
     final pref = await SharedPreferences.getInstance();
     final raw = pref.getStringList('students_list') ?? [];
-    setState(() => _stds = raw.map((e) => jsonDecode(e) as Map<String, dynamic>).toList());
+    setState(() {
+      stds = raw.map((e) => jsonDecode(e)).toList();
+    });
   }
 
   void _pay(String r, String name, String phone) {
-    final status = !(_paid[r] ?? false);
-    setState(() => _paid[r] = status);
+    final isPaidNow = !(paid[r] == true);
+    setState(() {
+      paid[r] = isPaidNow;
+    });
     final m = DateFormat('MMMM yyyy').format(DateTime.now());
-    if (status && phone.isNotEmpty) {
+    if (isPaidNow && phone.isNotEmpty) {
       sendSMS(context, phone, 'प्रिय अभिभावक, शिक्षार्थी $name (रोल: $r) का माह $m का मासिक शुल्क प्राप्त हुआ।');
     }
   }
@@ -264,16 +266,16 @@ class _FeeState extends State<FeeScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('मासिक शुल्क लेजर'), backgroundColor: const Color(0xFF07192C), foregroundColor: Colors.white),
-      body: _stds.isEmpty
+      body: stds.isEmpty
           ? const Center(child: Text('कोई छात्र नहीं है।'))
           : ListView.builder(
               padding: const EdgeInsets.all(8),
-              itemCount: _stds.length,
+              itemCount: stds.length,
               itemBuilder: (ctx, i) {
-                final r = _stds[i]['roll'].toString();
-                final name = _stds[i]['name'] ?? '';
-                final phone = _stds[i]['phone'] ?? '';
-                final isP = _paid[r] ?? false;
+                final r = stds[i]['roll'].toString();
+                final name = stds[i]['name'] ?? '';
+                final phone = stds[i]['phone'] ?? '';
+                final isP = paid[r] == true;
 
                 return Card(
                   child: ListTile(
@@ -296,12 +298,12 @@ class _FeeState extends State<FeeScreen> {
 class TestScreen extends StatefulWidget {
   const TestScreen({super.key});
   @override
-  State<TestScreen> createState() => _TestState();
+  State createState() => _TestState();
 }
 
 class _TestState extends State<TestScreen> {
-  List> _stds = [];
-  final Map<String, TextEditingController> _ctrl = {};
+  var stds = [];
+  var ctrl = {};
 
   @override
   void initState() {
@@ -313,9 +315,9 @@ class _TestState extends State<TestScreen> {
     final pref = await SharedPreferences.getInstance();
     final raw = pref.getStringList('students_list') ?? [];
     setState(() {
-      _stds = raw.map((e) => jsonDecode(e) as Map<String, dynamic>).toList();
-      for (var s in _stds) {
-        _ctrl[s['roll'].toString()] = TextEditingController(text: '0');
+      stds = raw.map((e) => jsonDecode(e)).toList();
+      for (var s in stds) {
+        ctrl[s['roll'].toString()] = TextEditingController(text: '0');
       }
     });
   }
@@ -324,15 +326,15 @@ class _TestState extends State<TestScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('टेस्ट अंक व SMS'), backgroundColor: const Color(0xFF07192C), foregroundColor: Colors.white),
-      body: _stds.isEmpty
+      body: stds.isEmpty
           ? const Center(child: Text('कोई छात्र नहीं है।'))
           : ListView.builder(
               padding: const EdgeInsets.all(8),
-              itemCount: _stds.length,
+              itemCount: stds.length,
               itemBuilder: (ctx, i) {
-                final r = _stds[i]['roll'].toString();
-                final name = _stds[i]['name'] ?? '';
-                final phone = _stds[i]['phone'] ?? '';
+                final r = stds[i]['roll'].toString();
+                final name = stds[i]['name'] ?? '';
+                final phone = stds[i]['phone'] ?? '';
 
                 return Card(
                   child: ListTile(
@@ -345,7 +347,7 @@ class _TestState extends State<TestScreen> {
                           width: 55,
                           height: 38,
                           child: TextField(
-                            controller: _ctrl[r],
+                            controller: ctrl[r],
                             keyboardType: TextInputType.number,
                             textAlign: TextAlign.center,
                             decoration: const InputDecoration(border: OutlineInputBorder(), contentPadding: EdgeInsets.zero),
@@ -355,8 +357,8 @@ class _TestState extends State<TestScreen> {
                         ElevatedButton(
                           style: ElevatedButton.styleFrom(backgroundColor: Colors.green, foregroundColor: Colors.white, padding: const EdgeInsets.symmetric(horizontal: 10)),
                           onPressed: () {
-                            final m = _ctrl[r]?.text.trim() ?? '0';
-                            sendSMS(context, phone, 'प्रिय अभिभावक, शिक्षार्थी $name (रोल: $r) का मासिक टेस्ट परिणाम: प्राप्तांक $m/50।');
+                            final m = ctrl[r]?.text.trim() ?? '0';
+                            sendSMS(context, phone, 'प्रिय अभिभावक, शिक्षार्थी $name (रोल: $r) का टेस्ट परिणाम: प्राप्तांक $m/50।');
                           },
                           child: const Text('SMS'),
                         ),
