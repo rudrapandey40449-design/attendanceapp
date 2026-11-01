@@ -41,7 +41,7 @@ class GovHeader extends StatelessWidget {
       children: [
         Container(
           color: const Color(0xFF07192C),
-          padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 14),
+          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
           child: Row(
             children: [
               Container(
@@ -49,20 +49,17 @@ class GovHeader extends StatelessWidget {
                 height: 44,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  border: Border.all(color: const Color(0xFFFFD700), width: 2.2),
-                  boxShadow: const [
-                    BoxShadow(color: Colors.amberAccent, blurRadius: 4, spreadRadius: 0.5)
-                  ],
+                  border: Border.all(color: const Color(0xFFFFD700), width: 2),
                   gradient: const RadialGradient(
-                    colors: [Color(0xFF2A5298), Color(0xFF07192C)],
+                    colors: [Color(0xFFFFD700), Color(0xFFB8860B)],
                   ),
                 ),
                 child: const Center(
                   child: Stack(
                     alignment: Alignment.center,
                     children: [
-                      Icon(Icons.workspace_premium, color: Color(0xFFFFD700), size: 28),
-                      Icon(Icons.account_balance, color: Colors.white, size: 14),
+                      Icon(Icons.workspace_premium, color: Color(0xFF07192C), size: 28),
+                      Icon(Icons.star, color: Colors.white, size: 12),
                     ],
                   ),
                 ),
@@ -166,7 +163,7 @@ class _FaceScanDialogState extends State<FaceScanDialog> {
                   label: Text(_verifying ? 'सत्यापन प्रक्रियाधीन...' : 'स्कैन आरंभ करें'),
                   onPressed: _verifying ? null : _startCamera,
                 ),
-                TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('रद्द करें', style: TextStyle(color: Colors.white70))),
+                TextButton(onPressed: () => Navigator.pop(context), child: const Text('रद्द करें', style: TextStyle(color: Colors.white70))),
               ],
             ),
           ),
