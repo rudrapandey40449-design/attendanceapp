@@ -24,19 +24,30 @@ Future sendFastSMS(BuildContext ctx, String phone, String msg) async {
   try {
     final res = await http.post(
       Uri.parse('https://www.fast2sms.com/dev/bulkV2'),
-      headers: {'authorization': apiKey, 'Content-Type': 'application/json'},
-      body: jsonEncode({'route': 'q', 'message': msg, 'language': 'unicode', 'numbers': cleanNum}),
+      headers: {
+        'authorization': apiKey,
+        'Content-Type': 'application/json',
+      },
+      body: jsonEncode({
+        'route': 'q',
+        'message': msg,
+        'language': 'unicode',
+        'numbers': cleanNum,
+      }),
     );
     final d = jsonDecode(res.body);
     if (ctx.mounted) {
       if (d['return'] == true) {
-        ScaffoldMessenger.of(ctx).showSnackBar(const SnackBar(backgroundColor: Colors.green, content: Text('SMS सफलतापूर्वक भेजा गया ✔')));
+        ScaffoldMessenger.of(ctx).showSnackBar(const SnackBar(backgroundColor: Colors.green, content: Text('अभिभावक को SMS सफलतापूर्वक भेजा गया ✔')));
       } else {
-        ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(backgroundColor: Colors.red, content: Text('SMS त्रुटि: ${d['message'] ?? "विफल"}')));
+        final errMsg = d['message'] is List ? (d['message'] as List).join(', ') : d['message'].toString();
+        ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(backgroundColor: Colors.red, content: Text('SMS विफल: $errMsg')));
       }
     }
-  } catch (_) {
-    if (ctx.mounted) ScaffoldMessenger.of(ctx).showSnackBar(const SnackBar(backgroundColor: Colors.red, content: Text('नेटवर्क त्रुटि: SMS नहीं गया')));
+  } catch (e) {
+    if (ctx.mounted) {
+      ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(backgroundColor: Colors.red, content: Text('इंटरनेट त्रुटि: $e')));
+    }
   }
 }
 
@@ -181,7 +192,6 @@ class Dashboard extends StatelessWidget {
                 _tile(context, 'राजस्व एवं शुल्क संधारण (Fee Ledger)', Icons.receipt_long, const FeeScreen()),
                 _tile(context, 'शैक्षणिक मूल्यांकन एवं टेस्ट परिणाम', Icons.assignment_turned_in, const TestScreen()),
                 _tile(context, 'नवीन शिक्षार्थी नामांकन (Student Register)', Icons.person_add, const EnrollScreen()),
-                
               ],
             ),
           ),
@@ -529,5 +539,3 @@ class _TestState extends State {
     );
   }
 }
-
-
